@@ -1,0 +1,16 @@
+# 忽略敏感文件
+trading.db
+*.db
+secrets.js
+secrets.json
+!secrets.js.example
+
+# Node modules (如果需要)
+# node_modules/
+
+# 环境变量
+.env
+.env.local
+
+# 日志
+*.log

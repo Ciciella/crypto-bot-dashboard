@@ -6,7 +6,7 @@
   <title>交易Dashboard - 甜瓜机器人</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
+    body { 
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
       min-height: 100vh;
@@ -17,7 +17,40 @@
     .container { max-width: 1200px; margin: 0 auto; }
     h1 { text-align: center; margin-bottom: 20px; font-size: 1.5rem; }
     h1 span { color: #00ff88; }
-
+    
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .header h1 { margin-bottom: 0; }
+    
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+    .status-badge.online {
+      background: rgba(0, 255, 136, 0.2);
+      color: #00ff88;
+    }
+    .status-badge.offline {
+      background: rgba(255, 71, 87, 0.2);
+      color: #ff4757;
+    }
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    .status-badge.online .status-dot { background: #00ff88; }
+    .status-badge.offline .status-dot { background: #ff4757; animation: none; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
     .stats-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -35,17 +68,17 @@
     .stat-card .value { font-size: 1.2rem; font-weight: bold; }
     .stat-card .value.green { color: #00ff88; }
     .stat-card .value.red { color: #ff4757; }
-
+    
     .section { margin-bottom: 20px; }
     .section h2 { margin-bottom: 10px; color: #00ff88; font-size: 1.1rem; }
-
+    
     .table-wrapper {
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
     }
-    table {
-      width: 100%;
-      border-collapse: collapse;
+    table { 
+      width: 100%; 
+      border-collapse: collapse; 
       background: rgba(255,255,255,0.05);
       border-radius: 10px;
       overflow: hidden;
@@ -55,12 +88,12 @@
     th { background: rgba(0,255,136,0.2); font-weight: 600; font-size: 0.8rem; }
     tr { border-bottom: 1px solid rgba(255,255,255,0.1); }
     tr:hover { background: rgba(255,255,255,0.05); }
-
+    
     .type-open { color: #00ff88; }
     .type-close { color: #ff4757; }
     .side-long { color: #00ff88; }
     .side-short { color: #ff4757; }
-
+    
     .refresh-btn {
       position: fixed;
       bottom: 20px;
@@ -78,8 +111,33 @@
     }
     .refresh-btn:active { transform: scale(0.95); }
 
+    .pagination {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      margin-top: 15px;
+    }
+    .pagination button {
+      background: rgba(0,255,136,0.2);
+      border: none;
+      color: #00ff88;
+      padding: 8px 15px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+    .pagination button:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+    .pagination span {
+      color: #888;
+      font-size: 0.85rem;
+    }
+    
     .time { color: #666; font-size: 0.75rem; }
-
+    
     /* 手机适配 */
     @media (max-width: 480px) {
       body { padding: 10px; padding-bottom: 70px; }
@@ -96,7 +154,13 @@
 </head>
 <body>
   <div class="container">
-    <h1>🍈 交易<span>Dashboard</span></h1>
+    <div class="header">
+      <h1>🍈 交易<span>Dashboard</span></h1>
+      <div id="botStatus" class="status-badge offline">
+        <span class="status-dot"></span>
+        <span>离线</span>
+      </div>
+    </div>    
 
     <div class="stats-grid">
       <div class="stat-card">
@@ -116,7 +180,7 @@
         <div class="value" id="todayPnl">-</div>
       </div>
     </div>
-
+    
     <div class="section">
       <h2>📊 最近交易记录</h2>
       <div class="table-wrapper">
@@ -129,12 +193,18 @@
               <th>数量</th>
               <th>价格</th>
               <th>策略</th>
+              <th>原因</th>
             </tr>
           </thead>
           <tbody id="tradesTable">
-            <tr><td colspan="6" style="text-align:center">加载中...</td></tr>
+            <tr><td colspan="7" style="text-align:center">加载中...</td></tr>
           </tbody>
         </table>
+      </div>
+      <div class="pagination">
+        <button id="prevBtn" onclick="changePage(-1)">◀</button>
+        <span id="pageInfo">1/1</span>
+        <button id="nextBtn" onclick="changePage(1)">▶</button>
       </div>
     </div>
     
@@ -160,12 +230,43 @@
     </div>
   </div>
 
-  <button class="refresh-btn" onclick="loadData()">🔄 刷新</button>
+  <button class="refresh-btn" onclick="loadData()">🔄</button>
 
   <script>
+    const PAGE_SIZE = 10;
+    let currentPage = 1;
+    let totalTrades = [];
+    let totalPages = 1;
+    
+    // 策略中文映射
+    const strategyMap = {
+      'trend': '趋势交易',
+      'grid': '网格交易',
+      'dca': '定投策略',
+      'arbitrage': '套利策略',
+      'mean_reversion': '均值回归'
+    };
+    
+    function getStrategyCN(strategy) {
+      return strategyMap[strategy] || strategy || '-';
+    }
+    
     async function loadData() {
       try {
-        const API_URL = 'https://disabilities-analyses-cosmetics-alone.trycloudflare.com/api/trades';
+        // 获取状态
+        const statusRes = await fetch('https://specifics-pictures-contains-curious.trycloudflare.com/api/status');
+        const status = await statusRes.json();
+        const statusEl = document.getElementById('botStatus');
+        if (status.status === 'online') {
+          statusEl.className = 'status-badge online';
+          statusEl.innerHTML = '<span class="status-dot"></span><span>运行中</span>';
+        } else {
+          statusEl.className = 'status-badge offline';
+          statusEl.innerHTML = '<span class="status-dot"></span><span>离线</span>';
+        }
+        
+        // 获取交易数据
+        const API_URL = 'https://specifics-pictures-contains-curious.trycloudflare.com/api/trades';
         const response = await fetch(API_URL);
         const data = await response.json();
 
@@ -182,25 +283,16 @@
         document.getElementById('todayPnl').textContent = (todayPnl >= 0 ? '+' : '') + todayPnl.toFixed(2) + ' USDT';
         document.getElementById('todayPnl').className = 'value ' + (todayPnl >= 0 ? 'green' : 'red');
 
-        // 更新交易记录
-        const tradesHtml = data.trades.map(t => {
-          const time = new Date(t.timestamp).toLocaleString('zh-CN', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'});
-          return `<tr>
-            <td class="time">${time}</td>
-            <td class="type-${t.type}">${t.type === 'open' ? '开' : '平'}</td>
-            <td class="side-${t.side}">${t.side === 'long' ? '多' : '空'}</td>
-            <td>${t.amount}</td>
-            <td>$${t.price.toLocaleString()}</td>
-            <td>${t.strategy}</td>
-          </tr>`;
-        }).join('');
-        document.getElementById('tradesTable').innerHTML = tradesHtml || '<tr><td colspan="7" style="text-align:center">暂无记录</td></tr>';
+        // 更新交易记录（分页）
+        totalTrades = data.trades || [];
+        totalPages = Math.ceil(totalTrades.length / PAGE_SIZE) || 1;
+        renderTrades();
 
         // 更新持仓
         const positionsHtml = data.positions.map(p => {
           const pnl = p.pnl || 0;
           return `<tr>
-            <td>${p.symbol.replace('BTC_USDT', 'BTC')}</td>
+            <td>${(p.symbol || '').replace('BTC_USDT', 'BTC')}</td>
             <td class="side-${p.side}">${p.side === 'long' ? '多' : '空'}</td>
             <td>${p.amount || 0}</td>
             <td>$${(p.entry_price || 0).toLocaleString()}</td>
@@ -212,6 +304,40 @@
 
       } catch (e) {
         console.error('加载失败:', e);
+      }
+    }
+    
+    function renderTrades() {
+      const start = (currentPage - 1) * PAGE_SIZE;
+      const end = start + PAGE_SIZE;
+      const pageTrades = totalTrades.slice(start, end);
+      
+      const tradesHtml = pageTrades.map(t => {
+        const time = new Date(t.timestamp).toLocaleString('zh-CN', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'});
+        return `<tr>
+          <td class="time">${time}</td>
+          <td class="type-${t.type}">${t.type === 'open' ? '开' : '平'}</td>
+          <td class="side-${t.side}">${t.side === 'long' ? '多' : '空'}</td>
+          <td>${t.amount}</td>
+          <td>$${(t.price || 0).toLocaleString()}</td>
+          <td>${getStrategyCN(t.strategy)}</td>
+          <td>${t.reason || '-'}</td>
+        </tr>`;
+      }).join('');
+      
+      document.getElementById('tradesTable').innerHTML = tradesHtml || '<tr><td colspan="7" style="text-align:center">暂无记录</td></tr>';
+      
+      // 更新分页信息
+      document.getElementById('pageInfo').textContent = `${currentPage}/${totalPages}`;
+      document.getElementById('prevBtn').disabled = currentPage === 1;
+      document.getElementById('nextBtn').disabled = currentPage === totalPages;
+    }
+    
+    function changePage(delta) {
+      const newPage = currentPage + delta;
+      if (newPage >= 1 && newPage <= totalPages) {
+        currentPage = newPage;
+        renderTrades();
       }
     }
 
