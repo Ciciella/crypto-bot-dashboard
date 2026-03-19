@@ -612,7 +612,7 @@
       btn.classList.add('refreshing');
       try {
         // 获取状态
-        const statusRes = await fetch('https://specifics-pictures-contains-curious.trycloudflare.com/api/status');
+        const statusRes = await fetch('https://thumbnail-planet-collectible-sitemap.trycloudflare.com/api/status');
         const status = await statusRes.json();
         const statusEl = document.getElementById('botStatus');
         if (status.status === 'online') {
@@ -624,7 +624,7 @@
         }
 
         // 获取交易数据
-        const API_URL = 'https://specifics-pictures-contains-curious.trycloudflare.com/api/trades';
+        const API_URL = 'https://thumbnail-planet-collectible-sitemap.trycloudflare.com/api/trades';
         const response = await fetch(API_URL);
         const data = await response.json();
 
