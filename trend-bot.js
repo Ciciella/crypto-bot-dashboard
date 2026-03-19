@@ -597,67 +597,18 @@ async function getMarkPrice() {
   }
 }
 
-// 开多仓 + 自动挂止盈止损 (使用条件单)
+// 开多仓
 async function openLong(price, amount) {
   try {
-    // 使用市价单开仓，避免价格偏差问题
     const order = {
       contract: CONFIG.symbol,
-      size: amount.toString(),  // 正数 = 多
-      price: '0',  // 市价单
+      size: amount.toString(),
+      price: '0',
       tif: 'ioc'
     };
     const result = await futuresApi.createFuturesOrder('usdt', order);
-    
-    // 获取实际成交价格
     const fillPrice = result.body.fillPrice || price;
     log(`✅ 开多仓成功: ${amount} BTC @ ${fillPrice}`);
-    
-    // 获取当前市场价格
-    const markPrice = await getMarkPrice() || parseFloat(fillPrice);
-    
-    // 计算止盈止损价格 (基于markPrice)
-    const takeProfitPrice = markPrice * (1 + CONFIG.takeProfitPercent / 100);
-    const stopLossPrice = markPrice * (1 - CONFIG.stopLossPercent / 100);
-    
-    // 挂止盈条件单 (价格达到止盈价时卖出)
-    try {
-      const tpOrder = {
-        contract: CONFIG.symbol,
-        size: (-amount).toString(),  // 负数 = 平仓
-        order_type: 'close_long',
-        trigger: {
-          price_type: 'mark_price',
-          price: Math.floor(takeProfitPrice).toString(),
-          rule: '>='  // 大于等于止盈价时触发
-        },
-        tif: 'gtc'
-      };
-      await futuresApi.createFuturesOrder('usdt', tpOrder);
-      log(`✅ 止盈条件单已挂: ${Math.floor(takeProfitPrice)} (>=+${CONFIG.takeProfitPercent}%)`);
-    } catch (e) {
-      log(`⚠️ 止盈单挂单失败: ${e.message}`);
-    }
-    
-    // 挂止损条件单 (价格达到止损价时卖出)
-    try {
-      const slOrder = {
-        contract: CONFIG.symbol,
-        size: (-amount).toString(),
-        order_type: 'close_long',
-        trigger: {
-          price_type: 'mark_price',
-          price: Math.floor(stopLossPrice).toString(),
-          rule: '<='  // 小于等于止损价时触发
-        },
-        tif: 'gtc'
-      };
-      await futuresApi.createFuturesOrder('usdt', slOrder);
-      log(`✅ 止损条件单已挂: ${Math.floor(stopLossPrice)} (<=-${CONFIG.stopLossPercent}%)`);
-    } catch (e) {
-      log(`⚠️ 止损单挂单失败: ${e.message}`);
-    }
-    
     return result;
   } catch (e) {
     log(`❌ 开多仓失败: ${e.message}`);
@@ -685,67 +636,18 @@ async function closeLong(price, amount) {
   }
 }
 
-// 开空仓 + 自动挂止盈止损 (使用条件单)
+// 开空仓
 async function openShort(price, amount) {
   try {
-    // 使用市价单开仓
     const order = {
       contract: CONFIG.symbol,
-      size: (-amount).toString(),  // 负数 = 空
-      price: '0',  // 市价单
+      size: (-amount).toString(),
+      price: '0',
       tif: 'ioc'
     };
     const result = await futuresApi.createFuturesOrder('usdt', order);
-    
-    // 获取实际成交价格
     const fillPrice = result.body.fillPrice || price;
     log(`✅ 开空仓成功: ${amount} BTC @ ${fillPrice}`);
-    
-    // 获取当前市场价格
-    const markPrice = await getMarkPrice() || parseFloat(fillPrice);
-    
-    // 计算止盈止损价格 (基于markPrice)
-    const takeProfitPrice = markPrice * (1 - CONFIG.takeProfitPercent / 100);
-    const stopLossPrice = markPrice * (1 + CONFIG.stopLossPercent / 100);
-    
-    // 挂止盈条件单 (价格下跌时买入平仓)
-    try {
-      const tpOrder = {
-        contract: CONFIG.symbol,
-        size: amount.toString(),  // 正数 = 平空
-        order_type: 'close_short',
-        trigger: {
-          price_type: 'mark_price',
-          price: Math.floor(takeProfitPrice).toString(),
-          rule: '<='  // 小于等于止盈价时触发
-        },
-        tif: 'gtc'
-      };
-      await futuresApi.createFuturesOrder('usdt', tpOrder);
-      log(`✅ 止盈条件单已挂: ${Math.floor(takeProfitPrice)} (<=+${CONFIG.takeProfitPercent}%)`);
-    } catch (e) {
-      log(`⚠️ 止盈单挂单失败: ${e.message}`);
-    }
-    
-    // 挂止损条件单 (价格上涨时买入平仓)
-    try {
-      const slOrder = {
-        contract: CONFIG.symbol,
-        size: amount.toString(),
-        order_type: 'close_short',
-        trigger: {
-          price_type: 'mark_price',
-          price: Math.ceil(stopLossPrice).toString(),
-          rule: '>='  // 大于等于止损价时触发
-        },
-        tif: 'gtc'
-      };
-      await futuresApi.createFuturesOrder('usdt', slOrder);
-      log(`✅ 止损条件单已挂: ${Math.ceil(stopLossPrice)} (>=+${CONFIG.stopLossPercent}%)`);
-    } catch (e) {
-      log(`⚠️ 止损单挂单失败: ${e.message}`);
-    }
-    
     return result;
   } catch (e) {
     log(`❌ 开空仓失败: ${e.message}`);
@@ -981,13 +883,16 @@ async function tradeCycle() {
     // 3. 分析信号
     signals = await analyzeSignals(ohlc1h, currentPrice);
     
-    // 4. 检查止盈止损 (多仓)
+    // 4. 检查止盈止损 (多仓) - 程序化检测
     if (position && position.size > 0) {
       const pnlPercent = (currentPrice - position.entryPrice) / position.entryPrice * 100;
       log(`📋 多仓: ${position.size} BTC @ $${position.entryPrice.toLocaleString()}, 盈亏: ${pnlPercent.toFixed(2)}%`);
       
-      // 更新最高价 (用于移动止盈)
-      updateHighestPrice(currentPrice);
+      // 计算止盈止损价格
+      const tpPrice = position.entryPrice * (1 + CONFIG.takeProfitPercent / 100);
+      const slPrice = position.entryPrice * (1 - CONFIG.stopLossPercent / 100);
+      log(`📌 止盈目标: $${Math.floor(tpPrice).toLocaleString()} (+${CONFIG.takeProfitPercent}%)`);
+      log(`📌 止损目标: $${Math.floor(slPrice).toLocaleString()} (-${CONFIG.stopLossPercent}%)`);
       
       // 固定止盈
       if (pnlPercent >= CONFIG.takeProfitPercent) {
