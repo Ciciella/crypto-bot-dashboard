@@ -131,77 +131,6 @@ function logCheck(data) {
 // 状态文件路径
 const STATUS_FILE = path.join(__dirname, 'bot-status.json');
 const TRADE_FILE = path.join(__dirname, 'trade-status.json');
-const API_PORT = 3001;
-
-// ============ 内置状态API ============
-function startStatusAPI() {
-  const server = http.createServer((req, res) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Content-Type', 'application/json');
-    
-    if (req.url === '/status' || req.url === '/') {
-      const botStatus = getBotStatus();
-      const tradeStatus = getTradeStatus();
-      res.end(JSON.stringify({
-        success: true,
-        bot: 'trend-bot',
-        status: botStatus.status,
-        timestamp: botStatus.timestamp,
-        price: tradeStatus?.price || null,
-        position: tradeStatus?.position || null,
-        balance: tradeStatus?.balance || null,
-        pnl: tradeStatus?.pnl || null,
-        signals: tradeStatus?.signals || null
-      }));
-    } else if (req.url === '/health') {
-      res.end(JSON.stringify({ ok: true, time: new Date().toISOString() }));
-    } else if (req.url === '/api') {
-      const tradeStatus = getTradeStatus();
-      res.end(JSON.stringify({
-        price: tradeStatus?.price || 0,
-        position: tradeStatus?.position || 0,
-        balance: tradeStatus?.balance || 0,
-        pnl: tradeStatus?.pnl || 0,
-        status: getBotStatus().status
-      }));
-    } else if (req.url.startsWith('/logs')) {
-      // 获取检查日志
-      try {
-        const limit = parseInt(new URL(req.url, 'http://localhost').searchParams.get('limit')) || 50;
-        const logs = db.prepare('SELECT * FROM check_logs ORDER BY id DESC LIMIT ?').all(limit);
-        res.end(JSON.stringify({ success: true, logs }));
-      } catch (e) {
-        res.end(JSON.stringify({ success: false, error: e.message }));
-      }
-    } else if (req.url.startsWith('/stats')) {
-      // 获取统计信息
-      try {
-        const total = db.prepare('SELECT COUNT(*) as count FROM check_logs').get().count;
-        const trades = db.prepare("SELECT COUNT(*) as count FROM check_logs WHERE action != 'none'").get().count;
-        const lastCheck = db.prepare('SELECT timestamp, price, signal_buy, signal_sell FROM check_logs ORDER BY id DESC LIMIT 1').get();
-        res.end(JSON.stringify({ 
-          success: true, 
-          totalChecks: total,
-          totalTrades: trades,
-          lastCheck: lastCheck
-        }));
-      } catch (e) {
-        res.end(JSON.stringify({ success: false, error: e.message }));
-      }
-    } else {
-      res.writeHead(404);
-      res.end('Not Found');
-    }
-  });
-  
-  server.listen(API_PORT, '0.0.0.0', () => {
-    console.log(`✅ 状态API: http://localhost:${API_PORT}/status`);
-  });
-  
-  server.on('error', (e) => {
-    console.error(`API错误: ${e.message}`);
-  });
-}
 
 function getBotStatus() {
   try {
@@ -238,9 +167,6 @@ function getTradeStatus() {
   } catch (e) {}
   return null;
 }
-
-// 启动API (已禁用，使用 dashboard-api.js 3000端口)
-// startStatusAPI();
 
 // ============ 配置 ============
 const CONFIG = {
