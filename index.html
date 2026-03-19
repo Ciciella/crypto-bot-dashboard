@@ -6,7 +6,7 @@
   <title>交易Dashboard - 甜瓜机器人</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { 
+    body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
       min-height: 100vh;
@@ -17,10 +17,10 @@
     .container { max-width: 1200px; margin: 0 auto; }
     h1 { text-align: center; margin-bottom: 20px; font-size: 1.5rem; }
     h1 span { color: #00ff88; }
-    
+
     .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
     .header h1 { margin-bottom: 0; }
-    
+
     .status-badge {
       display: inline-flex;
       align-items: center;
@@ -50,7 +50,7 @@
       0%, 100% { opacity: 1; }
       50% { opacity: 0.5; }
     }
-    
+
     .stats-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -68,17 +68,17 @@
     .stat-card .value { font-size: 1.2rem; font-weight: bold; }
     .stat-card .value.green { color: #00ff88; }
     .stat-card .value.red { color: #ff4757; }
-    
+
     .section { margin-bottom: 20px; }
     .section h2 { margin-bottom: 10px; color: #00ff88; font-size: 1.1rem; }
-    
+
     .table-wrapper {
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
     }
-    table { 
-      width: 100%; 
-      border-collapse: collapse; 
+    table {
+      width: 100%;
+      border-collapse: collapse;
       background: rgba(255,255,255,0.05);
       border-radius: 10px;
       overflow: hidden;
@@ -88,12 +88,12 @@
     th { background: rgba(0,255,136,0.2); font-weight: 600; font-size: 0.8rem; }
     tr { border-bottom: 1px solid rgba(255,255,255,0.1); }
     tr:hover { background: rgba(255,255,255,0.05); }
-    
+
     .type-open { color: #00ff88; }
     .type-close { color: #ff4757; }
     .side-long { color: #00ff88; }
     .side-short { color: #ff4757; }
-    
+
     .refresh-btn {
       position: fixed;
       bottom: 20px;
@@ -135,9 +135,52 @@
       color: #888;
       font-size: 0.85rem;
     }
-    
+
     .time { color: #666; font-size: 0.75rem; }
     
+    /* 调试日志样式 */
+    .debug-controls {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+    .debug-controls select {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: #fff;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+    }
+    .debug-controls button {
+      background: rgba(0,255,136,0.2);
+      border: none;
+      color: #00ff88;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+    .level-badge {
+      font-size: 0.7rem;
+      padding: 3px 8px;
+      border-radius: 10px;
+      font-weight: 600;
+    }
+    .level-info { background: rgba(0,200,255,0.2); color: #00c8ff; }
+    .level-warn { background: rgba(255,193,7,0.2); color: #ffc107; }
+    .level-error { background: rgba(255,71,87,0.2); color: #ff4757; }
+    .level-success { background: rgba(0,255,136,0.2); color: #00ff88; }
+    .detail-item {
+      display: inline-block;
+      background: rgba(255,255,255,0.1);
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin: 2px;
+      font-size: 0.7rem;
+    }
+
     /* 手机适配 */
     @media (max-width: 480px) {
       body { padding: 10px; padding-bottom: 70px; }
@@ -150,7 +193,7 @@
       th, td { padding: 8px 5px; }
       .refresh-btn { padding: 10px 18px; font-size: 0.85rem; bottom: 15px; right: 15px; }
     }
-    
+
     /* 导航标签 */
     .nav-tabs {
       display: flex;
@@ -177,14 +220,14 @@
       color: #1a1a2e;
       font-weight: bold;
     }
-    
+
     .page-section {
       display: none;
     }
     .page-section.active {
       display: block;
     }
-    
+
     /* 介绍页面样式 */
     .intro-card {
       background: rgba(255,255,255,0.1);
@@ -264,14 +307,14 @@
         <span class="status-dot"></span>
         <span>离线</span>
       </div>
-    </div>    
+    </div>
 
     <!-- 导航标签 -->
     <div class="nav-tabs">
       <button class="nav-tab active" onclick="showPage('dashboard')">📊 交易面板</button>
       <button class="nav-tab" onclick="showPage('about')">ℹ️ 介绍</button>
     </div>
-    
+
     <!-- 交易面板页面 -->
     <div id="page-dashboard" class="page-section active">
       <div class="stats-grid">
@@ -292,7 +335,7 @@
           <div class="value" id="todayPnl">-</div>
         </div>
       </div>
-      
+
       <div class="section">
         <h2>📊 最近交易记录</h2>
         <div class="table-wrapper">
@@ -319,7 +362,7 @@
           <button id="nextBtn" onclick="changePage(1)">▶</button>
         </div>
       </div>
-      
+
       <div class="section">
         <h2>📈 当前持仓</h2>
         <div class="table-wrapper">
@@ -363,15 +406,53 @@
           </table>
         </div>
       </div>
+
+      <div class="section">
+        <h2>🔍 调试日志</h2>
+        <div class="debug-controls">
+          <select id="debugLevel" onchange="loadDebugLogs()">
+            <option value="">全部级别</option>
+            <option value="INFO">INFO</option>
+            <option value="WARN">WARN</option>
+            <option value="ERROR">ERROR</option>
+            <option value="SUCCESS">SUCCESS</option>
+          </select>
+          <select id="debugCategory" onchange="loadDebugLogs()">
+            <option value="">全部类型</option>
+            <option value="API">API</option>
+            <option value="SIGNAL">SIGNAL</option>
+            <option value="TRADE">TRADE</option>
+            <option value="BALANCE">BALANCE</option>
+            <option value="POSITION">POSITION</option>
+          </select>
+          <button onclick="loadDebugLogs()">🔄 刷新</button>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>时间</th>
+                <th>级别</th>
+                <th>类型</th>
+                <th>消息</th>
+                <th>详情</th>
+              </tr>
+            </thead>
+            <tbody id="debugLogsTable">
+              <tr><td colspan="5" style="text-align:center">加载中...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>  <!-- 关闭 dashboard 页面 -->
-    
+
     <!-- 介绍页面 -->
     <div id="page-about" class="page-section">
       <div class="intro-card">
         <h3>🤖 项目介绍</h3>
         <p>全自动加密货币交易系统，支持多种交易策略，包括趋势交易、网格交易、资金费率套利等。系统运行在 Gate.io 测试网，支持 BTC/USDT 交易对。</p>
       </div>
-      
+
       <div class="intro-card">
         <h3>📈 支持的交易策略</h3>
         <ul class="strategy-list">
@@ -389,7 +470,7 @@
           </li>
         </ul>
       </div>
-      
+
       <div class="intro-card">
         <h3>📊 趋势交易策略详情</h3>
         <p>基于多指标确认的趋势跟踪策略：</p>
@@ -402,29 +483,7 @@
         </ul>
         <p style="margin-top: 12px;">止盈止损：<strong style="color: #00ff88;">+3%</strong> 止盈，<strong style="color: #ff4757;">-2%</strong> 止损</p>
       </div>
-      
-      <div class="intro-card">
-        <h3>🔧 技术架构</h3>
-        <div class="feature-grid">
-          <div class="feature-item">
-            <div class="icon">🟢</div>
-            <div class="label">Gate.io API</div>
-          </div>
-          <div class="feature-item">
-            <div class="icon">📊</div>
-            <div class="label">SQLite 数据库</div>
-          </div>
-          <div class="feature-item">
-            <div class="icon">🌐</div>
-            <div class="label">Cloudflare Tunnel</div>
-          </div>
-          <div class="feature-item">
-            <div class="icon">📱</div>
-            <div class="label">响应式 Web</div>
-          </div>
-        </div>
-      </div>
-      
+
       <div class="intro-card">
         <h3>📊 数据统计</h3>
         <div class="stats-grid">
@@ -448,7 +507,7 @@
     let currentPage = 1;
     let totalTrades = [];
     let totalPages = 1;
-    
+
     // 策略中文映射
     const strategyMap = {
       'trend': '趋势交易',
@@ -457,11 +516,11 @@
       'arbitrage': '套利策略',
       'mean_reversion': '均值回归'
     };
-    
+
     function getStrategyCN(strategy) {
       return strategyMap[strategy] || strategy || '-';
     }
-    
+
     // 切换页面
     function showPage(page) {
       // 更新标签状态
@@ -469,19 +528,19 @@
         tab.classList.remove('active');
       });
       event.target.classList.add('active');
-      
+
       // 切换页面显示
       document.querySelectorAll('.page-section').forEach(section => {
         section.classList.remove('active');
       });
       document.getElementById('page-' + page).classList.add('active');
-      
+
       // 如果是介绍页面，加载统计数据
       if (page === 'about') {
         loadAboutStats();
       }
     }
-    
+
     // 加载介绍页面统计数据
     async function loadAboutStats() {
       try {
@@ -495,7 +554,7 @@
         console.error('加载统计失败:', e);
       }
     }
-    
+
     async function loadData() {
       try {
         // 获取状态
@@ -509,7 +568,7 @@
           statusEl.className = 'status-badge offline';
           statusEl.innerHTML = '<span class="status-dot"></span><span>离线</span>';
         }
-        
+
         // 获取交易数据
         const API_URL = 'https://specifics-pictures-contains-curious.trycloudflare.com/api/trades';
         const response = await fetch(API_URL);
@@ -552,14 +611,14 @@
           // 尝试从同一API获取日志
           const logsApi = status.api ? status.api.replace('/status', '/logs') : null;
           let logsData = null;
-          
+
           if (logsApi) {
             try {
               const logsRes = await fetch(logsApi + '?limit=20');
               logsData = await logsRes.json();
             } catch(e) {}
           }
-          
+
           // 如果上面的方式失败，尝试 /api/logs
           if (!logsData || !logsData.success) {
             try {
@@ -567,7 +626,7 @@
               logsData = await logsRes.json();
             } catch(e) {}
           }
-          
+
           if (logsData && logsData.success) {
             const logsHtml = logsData.logs.map(log => {
               const time = new Date(log.timestamp).toLocaleString('zh-CN', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit'});
@@ -597,12 +656,12 @@
         console.error('加载失败:', e);
       }
     }
-    
+
     function renderTrades() {
       const start = (currentPage - 1) * PAGE_SIZE;
       const end = start + PAGE_SIZE;
       const pageTrades = totalTrades.slice(start, end);
-      
+
       const tradesHtml = pageTrades.map(t => {
         const time = new Date(t.timestamp).toLocaleString('zh-CN', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'});
         return `<tr>
@@ -615,15 +674,15 @@
           <td>${t.reason || '-'}</td>
         </tr>`;
       }).join('');
-      
+
       document.getElementById('tradesTable').innerHTML = tradesHtml || '<tr><td colspan="7" style="text-align:center">暂无记录</td></tr>';
-      
+
       // 更新分页信息
       document.getElementById('pageInfo').textContent = `${currentPage}/${totalPages}`;
       document.getElementById('prevBtn').disabled = currentPage === 1;
       document.getElementById('nextBtn').disabled = currentPage === totalPages;
     }
-    
+
     function changePage(delta) {
       const newPage = currentPage + delta;
       if (newPage >= 1 && newPage <= totalPages) {
@@ -631,9 +690,63 @@
         renderTrades();
       }
     }
-
+	
+    // 加载调试日志
+    async function loadDebugLogs() {
+      const level = document.getElementById('debugLevel')?.value || '';
+      const category = document.getElementById('debugCategory')?.value || '';
+      
+      let url = '/api/debug?limit=100';
+      if (level) url += '&level=' + level;
+      if (category) url += '&category=' + category;
+      
+      try {
+        const res = await fetch(API_URL.replace('/trades', url));
+        const data = await res.json();
+        
+        if (data && data.success) {
+          const logsHtml = data.logs.map(log => {
+            const time = new Date(log.timestamp).toLocaleString('zh-CN', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit'});
+            const levelClass = {
+              'INFO': 'level-info',
+              'WARN': 'level-warn', 
+              'ERROR': 'level-error',
+              'SUCCESS': 'level-success'
+            }[log.level] || '';
+            
+            let details = '-';
+            if (log.details) {
+              try {
+                const d = JSON.parse(log.details);
+                details = Object.entries(d).map(([k,v]) => `<span class="detail-item">${k}: ${typeof v === 'number' ? v.toFixed(2) : v}</span>`).join(' ');
+              } catch(e) {
+                details = log.details;
+              }
+            }
+            
+            return `<tr>
+              <td class="time">${time}</td>
+              <td><span class="level-badge ${levelClass}">${log.level}</span></td>
+              <td>${log.category}</td>
+              <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;">${log.message}</td>
+              <td style="font-size:0.7rem;max-width:250px;word-break:break-all;">${details}</td>
+            </tr>`;
+          }).join('');
+          
+          document.getElementById('debugLogsTable').innerHTML = logsHtml || '<tr><td colspan="5" style="text-align:center">暂无记录</td></tr>';
+        } else {
+          document.getElementById('debugLogsTable').innerHTML = '<tr><td colspan="5" style="text-align:center">暂无记录</td></tr>';
+        }
+      } catch(e) {
+        console.error('调试日志加载失败:', e);
+        document.getElementById('debugLogsTable').innerHTML = '<tr><td colspan="5" style="text-align:center">加载失败</td></tr>';
+      }
+    }
+    
     loadData();
+    loadDebugLogs();
     setInterval(loadData, 10000); // 每10秒自动刷新
+    setInterval(loadDebugLogs, 15000); // 调试日志每15秒刷新
   </script>
 </body>
 </html>

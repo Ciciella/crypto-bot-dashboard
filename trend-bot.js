@@ -41,6 +41,57 @@ db.exec(`
   )
 `);
 
+// ============ 调试日志表 ============
+db.exec(`
+  CREATE TABLE IF NOT EXISTS debug_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp TEXT NOT NULL,
+    level TEXT NOT NULL,           -- INFO, WARN, ERROR, SUCCESS
+    category TEXT NOT NULL,        -- API, SIGNAL, TRADE, BALANCE, POSITION, CONFIG
+    message TEXT NOT NULL,
+    details TEXT                   -- JSON格式的详细信息
+  )
+`);
+
+// 调试日志函数
+function debugLog(level, category, message, details = null) {
+  try {
+    const stmt = db.prepare(`
+      INSERT INTO debug_logs (timestamp, level, category, message, details)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+    stmt.run(
+      new Date().toISOString(),
+      level,
+      category,
+      message,
+      details ? JSON.stringify(details) : null
+    );
+    
+    // 控制台输出 (带颜色)
+    const colors = {
+      'INFO': '\x1b[36m',    // 青色
+      'WARN': '\x1b[33m',    // 黄色
+      'ERROR': '\x1b[31m',   // 红色
+      'SUCCESS': '\x1b[32m'  // 绿色
+    };
+    const reset = '\x1b[0m';
+    console.log(`${colors[level] || ''}[${level}]${reset} [${category}] ${message}`);
+  } catch (e) {
+    console.error('写入调试日志失败:', e.message);
+  }
+}
+
+// 便捷日志函数
+function logAPI(msg, details) { debugLog('INFO', 'API', msg, details); }
+function logSignal(msg, details) { debugLog('INFO', 'SIGNAL', msg, details); }
+function logTrade(msg, details) { debugLog('SUCCESS', 'TRADE', msg, details); }
+function logBalance(msg, details) { debugLog('INFO', 'BALANCE', msg, details); }
+function logPosition(msg, details) { debugLog('INFO', 'POSITION', msg, details); }
+function logConfig(msg, details) { debugLog('INFO', 'CONFIG', msg, details); }
+function logWarn(msg, details) { debugLog('WARN', 'WARN', msg, details); }
+function logError(msg, details) { debugLog('ERROR', 'ERROR', msg, details); }
+
 // 插入检查日志
 function logCheck(data) {
   const stmt = db.prepare(`
@@ -80,7 +131,7 @@ function logCheck(data) {
 // 状态文件路径
 const STATUS_FILE = path.join(__dirname, 'bot-status.json');
 const TRADE_FILE = path.join(__dirname, 'trade-status.json');
-const API_PORT = 3000;
+const API_PORT = 3001;
 
 // ============ 内置状态API ============
 function startStatusAPI() {
@@ -538,48 +589,104 @@ function isVolumeExpanding(data, threshold = 1.5) {
   return recentVolume / pastVolume >= threshold;
 }
 
-// 获取当前价格
-function getCurrentPrice(coin) {
-  const data = exec(`node ../skills/crypto-market-data/scripts/get_crypto_price.js ${coin}`);
-  return data[coin]?.usd;
+// 获取当前价格 (Gate.io API - 更快)
+async function getCurrentPrice(coin) {
+  const startTime = Date.now();
+  try {
+    // 将 coin 转换为交易对
+    let pair;
+    const coinMap = { 'bitcoin': 'BTC', 'ethereum': 'ETH', 'solana': 'SOL' };
+    const base = coinMap[coin.toLowerCase()] || 'BTC';
+    pair = `${base}_USDT`;
+    
+    const url = `https://api-testnet.gateapi.io/api/v4/spot/tickers?currency_pair=${pair}`;
+    const data = await httpGet(url, 5000); // 5秒超时
+    const json = JSON.parse(data);
+    if (json && json.length > 0) {
+      const price = parseFloat(json[0].last);
+      logAPI(`获取价格成功: ${coin} = $${price}`, { 
+        coin, pair, price, latency: Date.now() - startTime 
+      });
+      return price;
+    }
+    logWarn(`获取价格返回空数据`, { coin, pair });
+    return null;
+  } catch (e) {
+    logError(`获取价格失败: ${e.message}`, { coin, error: e.message });
+    return null;
+  }
 }
 
-// 获取账户余额 (带重试)
+// 缓存余额 (用于API失败时)
+let cachedBalance = null;
+
+// 获取账户余额 (带重试 + 缓存)
 async function getBalance() {
+  const startTime = Date.now();
   for (let i = 0; i < 3; i++) {
     try {
       const result = await futuresApi.listFuturesAccounts('usdt');
       const data = result.body;
-      return {
+      const balance = {
         total: parseFloat(data.total || 0),
         available: parseFloat(data.available || 0),
         unrealisedPnl: parseFloat(data.unrealisedPnl || 0)
       };
+      cachedBalance = balance; // 缓存成功的结果
+      logBalance(`获取余额成功`, { 
+        total: balance.total, 
+        available: balance.available, 
+        unrealisedPnl: balance.unrealisedPnl,
+        latency: Date.now() - startTime 
+      });
+      return balance;
     } catch (e) {
-      log(`⚠️ 获取余额失败 (${i+1}/3): ${e.message}`);
+      logWarn(`获取余额失败 (${i+1}/3): ${e.message}`, { attempt: i + 1 });
       if (i < 2) await new Promise(r => setTimeout(r, 2000));
     }
   }
+  
+  // API失败，使用缓存
+  if (cachedBalance) {
+    logWarn(`API失败，使用缓存余额`, { cached: cachedBalance.available });
+    return cachedBalance;
+  }
+  
+  logError(`严重错误: 无法获取余额且无缓存!`, {});
   return null;
 }
 
-// 获取持仓 (带重试)
+// 缓存持仓
+let cachedPosition = null;
+
+// 获取持仓 (带重试 + 缓存)
 async function getPosition() {
+  const startTime = Date.now();
   for (let i = 0; i < 3; i++) {
     try {
       const result = await futuresApi.listPositions('usdt');
       const positions = result.body;
       const pos = positions.find(p => p.contract === CONFIG.symbol && p.size && parseFloat(p.size) !== 0);
-      if (pos) {
-        return {
-          size: parseFloat(pos.size),
-          entryPrice: parseFloat(pos.entryPrice || pos.price),
-          unrealizedPnl: parseFloat(pos.unrealisedPnl || pos.profit)
-        };
-      }
-      return null;
+      
+      const position = pos ? {
+        size: parseFloat(pos.size),
+        entryPrice: parseFloat(pos.entryPrice || pos.price),
+        unrealizedPnl: parseFloat(pos.unrealisedPnl || pos.profit),
+        markPrice: parseFloat(pos.markPrice)
+      } : null;
+      
+      cachedPosition = position;
+      
+      logPosition(position ? `获取持仓成功: ${position.size} BTC` : '无持仓', {
+        size: position?.size || 0,
+        entryPrice: position?.entryPrice,
+        unrealizedPnl: position?.unrealizedPnl,
+        latency: Date.now() - startTime
+      });
+      
+      return position;
     } catch (e) {
-      log(`⚠️ 获取持仓失败 (${i+1}/3): ${e.message}`);
+      logWarn(`获取持仓失败 (${i+1}/3): ${e.message}`, { attempt: i + 1 });
       if (i < 2) await new Promise(r => setTimeout(r, 2000));
     }
   }
@@ -599,6 +706,7 @@ async function getMarkPrice() {
 
 // 开多仓
 async function openLong(price, amount) {
+  const startTime = Date.now();
   try {
     const order = {
       contract: CONFIG.symbol,
@@ -608,16 +716,27 @@ async function openLong(price, amount) {
     };
     const result = await futuresApi.createFuturesOrder('usdt', order);
     const fillPrice = result.body.fillPrice || price;
-    log(`✅ 开多仓成功: ${amount} BTC @ ${fillPrice}`);
+    const orderId = result.body.id;
+    
+    logTrade(`开多仓成功`, {
+      side: 'long',
+      amount,
+      orderPrice: price,
+      fillPrice,
+      orderId,
+      latency: Date.now() - startTime
+    });
+    
     return result;
   } catch (e) {
-    log(`❌ 开多仓失败: ${e.message}`);
+    logError(`开多仓失败: ${e.message}`, { side: 'long', amount, price, error: e.message });
     return null;
   }
 }
 
 // 平多仓
 async function closeLong(price, amount) {
+  const startTime = Date.now();
   try {
     // 使用市价单平仓
     const order = {
@@ -628,16 +747,27 @@ async function closeLong(price, amount) {
     };
     const result = await futuresApi.createFuturesOrder('usdt', order);
     const fillPrice = result.body.fillPrice || price;
-    log(`✅ 平多仓成功: ${amount} BTC @ ${fillPrice}`);
+    const orderId = result.body.id;
+    
+    logTrade(`平多仓成功`, {
+      side: 'long',
+      amount,
+      orderPrice: price,
+      fillPrice,
+      orderId,
+      latency: Date.now() - startTime
+    });
+    
     return result;
   } catch (e) {
-    log(`❌ 平多仓失败: ${e.message}`);
+    logError(`平多仓失败: ${e.message}`, { side: 'long', amount, price, error: e.message });
     return null;
   }
 }
 
 // 开空仓
 async function openShort(price, amount) {
+  const startTime = Date.now();
   try {
     const order = {
       contract: CONFIG.symbol,
@@ -647,16 +777,27 @@ async function openShort(price, amount) {
     };
     const result = await futuresApi.createFuturesOrder('usdt', order);
     const fillPrice = result.body.fillPrice || price;
-    log(`✅ 开空仓成功: ${amount} BTC @ ${fillPrice}`);
+    const orderId = result.body.id;
+    
+    logTrade(`开空仓成功`, {
+      side: 'short',
+      amount,
+      orderPrice: price,
+      fillPrice,
+      orderId,
+      latency: Date.now() - startTime
+    });
+    
     return result;
   } catch (e) {
-    log(`❌ 开空仓失败: ${e.message}`);
+    logError(`开空仓失败: ${e.message}`, { side: 'short', amount, price, error: e.message });
     return null;
   }
 }
 
 // 平空仓 (新增)
 async function closeShort(price, amount) {
+  const startTime = Date.now();
   try {
     const order = {
       contract: CONFIG.symbol,
@@ -666,10 +807,20 @@ async function closeShort(price, amount) {
     };
     const result = await futuresApi.createFuturesOrder('usdt', order);
     const fillPrice = result.body.fillPrice || price;
-    log(`✅ 平空仓成功: ${amount} BTC @ ${fillPrice}`);
+    const orderId = result.body.id;
+    
+    logTrade(`平空仓成功`, {
+      side: 'short',
+      amount,
+      orderPrice: price,
+      fillPrice,
+      orderId,
+      latency: Date.now() - startTime
+    });
+    
     return result;
   } catch (e) {
-    log(`❌ 平空仓失败: ${e.message}`);
+    logError(`平空仓失败: ${e.message}`, { side: 'short', amount, price, error: e.message });
     return null;
   }
 }
@@ -858,6 +1009,13 @@ async function tradeCycle() {
   let position = null;
   let signals = null;
   
+  // 先检查缓存余额状态
+  if (cachedBalance) {
+    log(`📋 缓存余额: 可用 ${cachedBalance.available.toFixed(2)} USDT`);
+  } else {
+    log(`📋 无缓存余额，需要从API获取`);
+  }
+  
   try {
     // 1. 获取数据
     currentPrice = await getCurrentPrice(CONFIG.coin);
@@ -967,22 +1125,52 @@ async function tradeCycle() {
         // 计算建仓数量 (分批)
         let amount = CONFIG.baseTradeAmount;
         
+        // ========== 详细日志 ==========
+        log(`🔍 买入信号检测:`);
+        log(`   - 余额: ${balance?.available ?? '获取失败'}`);
+        log(`   - 当前价: $${currentPrice}`);
+        log(`   - 信号: ${signals.reason.join(', ')}`);
+        log(`   - 信号强度: ${signals.strength}`);
+        log(`   - 趋势: ${signals.trendUp ? '向上↗️' : '向下↘️'}`);
+        log(`   - 成交量: ${signals.volumeOK ? 'OK✅' : '不足❌'}`);
+        
         // 检查余额是否足够 (使用10%仓位)
-        const maxAffordable = balance.available * 0.1 / (currentPrice / 10000); // 杠杆4倍
+        const balanceAvail = balance?.available ?? 0;
+        const maxAffordable = balanceAvail > 0 ? (balanceAvail * 0.1 / (currentPrice / 10000)) : 0;
         amount = Math.min(amount, Math.floor(maxAffordable * 100) / 100);
         amount = Math.max(amount, 0.001); // 最小0.001 BTC
         
+        log(`   - 可买入: ${maxAffordable.toFixed(4)} BTC`);
+        log(`   - 实际建仓: ${amount.toFixed(4)} BTC`);
+        log(`   - 最小门槛: 0.01 BTC`);
+        
         if (amount >= 0.01) {
-          log(`🚀 开多仓 (第${positionCount + 1}批): ${amount} BTC @ $${currentPrice.toLocaleString()}`);
-          log(`📋 信号: ${signals.reason.join(' + ')} (强度: ${signals.strength})`);
+          log(`✅ 满足建仓条件!`);
           
-          if (canTrade()) {
+          // 检查冷却
+          const now = Date.now();
+          const cooldownMs = CONFIG.cooldownMinutes * 60 * 1000;
+          const timeSinceLastTrade = now - signalHistory.lastTradeTime;
+          const canTradeResult = timeSinceLastTrade >= cooldownMs;
+          
+          log(`   - 冷却检查: ${canTradeResult ? '通过✅' : '冷却中...'}`);
+          if (!canTradeResult) {
+            const remaining = Math.round((cooldownMs - timeSinceLastTrade) / 60000);
+            log(`   - 还需等待: ${remaining} 分钟`);
+          }
+          
+          if (canTradeResult) {
+            log(`🚀 开多仓 (第${positionCount + 1}批): ${amount} BTC @ $${currentPrice.toLocaleString()}`);
+            log(`📋 信号: ${signals.reason.join(' + ')} (强度: ${signals.strength})`);
+            
             await openLong(currentPrice, amount);
             recordTrade(currentPrice);
             lastAction = 'open_long';
             lastActionAmount = amount;
             lastActionPrice = currentPrice;
           }
+        } else {
+          log(`❌ 不满足建仓条件: 金额 ${amount.toFixed(4)} < 0.01 BTC 或余额不足`);
         }
       } else {
         log('⏸️ 无买入信号，保持观望');

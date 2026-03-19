@@ -196,6 +196,33 @@ const server = http.createServer(async (req, res) => {
       });
       return;
       
+    } else if (url === '/api/debug') {
+      // 调试日志
+      const limit = parseInt(new URL(req.url, 'http://localhost').searchParams.get('limit')) || 50;
+      const level = new URL(req.url, 'http://localhost').searchParams.get('level');
+      const category = new URL(req.url, 'http://localhost').searchParams.get('category');
+      
+      let sql = 'SELECT * FROM debug_logs ORDER BY id DESC LIMIT ?';
+      let params = [limit];
+      
+      if (level || category) {
+        const conditions = [];
+        if (level) { conditions.push('level = ?'); params.push(level); }
+        if (category) { conditions.push('category = ?'); params.push(category); }
+        sql = 'SELECT * FROM debug_logs WHERE ' + conditions.join(' AND ') + ' ORDER BY id DESC LIMIT ?';
+      }
+      
+      db.all(sql, params, (err, rows) => {
+        if (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: err.message }));
+        } else {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: true, logs: rows }));
+        }
+      });
+      return;
+      
     } else {
       // 返回Dashboard HTML
       const htmlPath = path.join(__dirname, 'dashboard.html');
