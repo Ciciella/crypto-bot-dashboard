@@ -765,7 +765,7 @@
       const level = document.getElementById('debugLevel')?.value || '';
       const category = document.getElementById('debugCategory')?.value || '';
       
-      let url = '/api/debug?limit=100';
+      let url = '/debug?limit=100';
       if (level) url += '&level=' + level;
       if (category) url += '&category=' + category;
       
