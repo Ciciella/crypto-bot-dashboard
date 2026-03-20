@@ -13,6 +13,21 @@ const Database = require('better-sqlite3');
 const DB_PATH = path.join(__dirname, 'trading.db');
 const db = new Database(DB_PATH);
 
+// 创建交易记录表
+db.exec(`
+  CREATE TABLE IF NOT EXISTS trades (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp TEXT NOT NULL,
+    type TEXT NOT NULL,
+    side TEXT NOT NULL,
+    amount REAL NOT NULL,
+    price REAL NOT NULL,
+    strategy TEXT,
+    reason TEXT,
+    pnl REAL DEFAULT 0
+  )
+`);
+
 // 创建检查日志表
 db.exec(`
   CREATE TABLE IF NOT EXISTS check_logs (
@@ -91,6 +106,29 @@ function logPosition(msg, details) { debugLog('INFO', 'POSITION', msg, details);
 function logConfig(msg, details) { debugLog('INFO', 'CONFIG', msg, details); }
 function logWarn(msg, details) { debugLog('WARN', 'WARN', msg, details); }
 function logError(msg, details) { debugLog('ERROR', 'ERROR', msg, details); }
+
+// 记录交易到 trades 表
+function recordTradeToDb(type, side, amount, price, reason, pnl = 0) {
+  try {
+    const stmt = db.prepare(`
+      INSERT INTO trades (timestamp, type, side, amount, price, strategy, reason, pnl)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    stmt.run(
+      new Date().toISOString(),
+      type,
+      side,
+      amount,
+      price,
+      'trend-bot',
+      reason,
+      pnl
+    );
+    console.log(`📝 交易记录已写入: ${type} ${side} ${amount} @ ${price}`);
+  } catch (e) {
+    console.error('写入交易记录失败:', e.message);
+  }
+}
 
 // 插入检查日志
 function logCheck(data) {
@@ -985,6 +1023,8 @@ async function tradeCycle() {
         lastAction = 'close_long_tp';
         lastActionAmount = position.size;
         lastActionPrice = currentPrice;
+        // 写入交易记录
+        recordTradeToDb('close', 'long', position.size, currentPrice, '止盈平仓', pnlPercent);
         // 记录日志
         logCheck({
           price: currentPrice,
@@ -1018,6 +1058,8 @@ async function tradeCycle() {
         lastAction = 'close_long_sl';
         lastActionAmount = position.size;
         lastActionPrice = currentPrice;
+        // 写入交易记录
+        recordTradeToDb('close', 'long', position.size, currentPrice, '止损平仓', pnlPercent);
         // 记录日志
         logCheck({
           price: currentPrice,
@@ -1055,6 +1097,8 @@ async function tradeCycle() {
           lastAction = 'close_long_trailing';
           lastActionAmount = position.size;
           lastActionPrice = currentPrice;
+          // 写入交易记录
+          recordTradeToDb('close', 'long', position.size, currentPrice, '移动止盈', currentProfitPercent);
           // 记录日志
           logCheck({
             price: currentPrice,
@@ -1096,6 +1140,8 @@ async function tradeCycle() {
         lastAction = 'close_short_tp';
         lastActionAmount = posSize;
         lastActionPrice = currentPrice;
+        // 写入交易记录
+        recordTradeToDb('close', 'short', posSize, currentPrice, '空仓止盈', pnlPercent);
         // 记录日志
         logCheck({
           price: currentPrice,
@@ -1129,6 +1175,8 @@ async function tradeCycle() {
         lastAction = 'close_short_sl';
         lastActionAmount = posSize;
         lastActionPrice = currentPrice;
+        // 写入交易记录
+        recordTradeToDb('close', 'short', posSize, currentPrice, '空仓止损', pnlPercent);
         // 记录日志
         logCheck({
           price: currentPrice,
@@ -1209,6 +1257,8 @@ async function tradeCycle() {
             lastAction = 'open_long';
             lastActionAmount = amount;
             lastActionPrice = currentPrice;
+            // 写入交易记录
+            recordTradeToDb('open', 'long', amount, currentPrice, signals.reason.join(' + '));
           }
         } else {
           log(`❌ 不满足建仓条件: 金额 ${amount.toFixed(4)} < 0.01 BTC 或余额不足`);
@@ -1239,6 +1289,8 @@ async function tradeCycle() {
           lastAction = 'close_long_signal';
           lastActionAmount = position.size;
           lastActionPrice = currentPrice;
+          // 写入交易记录
+          recordTradeToDb('close', 'long', position.size, currentPrice, signals.reason.join(' + '), pnlPercent);
         }
       } else {
         log(`📊 持仓中: ${position.size} BTC @ $${position.entryPrice.toLocaleString()}, 盈亏: ${pnlPercent.toFixed(2)}%`);
