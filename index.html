@@ -670,7 +670,7 @@
       'close_short_tp': '空仓止盈',
       'close_short_sl': '空仓止损',
       'close_short_signal': '空仓信号平仓',
-      'none': '-'
+      'none': '检查'
     };
 
     function getActionCN(action) {
@@ -805,7 +805,7 @@
                 <td>${signal}</td>
                 <td style="font-size:0.75rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;">${log.signal_reason || '-'}</td>
                 <td class="${pnl >= 0 ? 'type-open' : 'type-close'}">${pnl !== null ? (pnl >= 0 ? '+' : '') + pnl.toFixed(2) + '%' : '-'}</td>
-                <td>${getActionCN(log.action)}</td>
+                <td>${log.action === 'none' ? '检查' : getActionCN(log.action)}</td>
               </tr>`;
             }).join('');
             document.getElementById('logsTable').innerHTML = logsHtml || '<tr><td colspan="8" style="text-align:center">暂无记录</td></tr>';
