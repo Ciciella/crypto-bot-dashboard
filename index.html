@@ -381,6 +381,105 @@
       background: #00ff88;
       color: #1a1a2e;
     }
+
+    /* 模态框样式 */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.7);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+    .modal.show {
+      display: flex;
+    }
+    .modal-content {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      border-radius: 15px;
+      padding: 25px;
+      width: 90%;
+      max-width: 400px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    }
+    .modal-content h3 {
+      color: #00ff88;
+      margin-bottom: 20px;
+      font-size: 1.2rem;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    .form-group label {
+      display: block;
+      color: #888;
+      margin-bottom: 8px;
+      font-size: 0.9rem;
+    }
+    .form-group input {
+      width: 100%;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: #fff;
+      padding: 12px 15px;
+      border-radius: 8px;
+      font-size: 1rem;
+    }
+    .form-group input:focus {
+      outline: none;
+      border-color: #00ff88;
+    }
+    .form-hint {
+      color: #666;
+      font-size: 0.8rem;
+      margin-top: 5px;
+    }
+    .modal-buttons {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+    .btn {
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      border: none;
+      transition: all 0.3s;
+    }
+    .btn-primary {
+      background: #00ff88;
+      color: #1a1a2e;
+      font-weight: bold;
+    }
+    .btn-primary:hover {
+      background: #00cc6e;
+    }
+    .btn-secondary {
+      background: rgba(255,255,255,0.1);
+      color: #888;
+    }
+    .btn-secondary:hover {
+      background: rgba(255,255,255,0.2);
+      color: #fff;
+    }
+    .edit-btn {
+      background: rgba(0,255,136,0.2);
+      color: #00ff88;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      margin-left: 10px;
+    }
+    .edit-btn:hover {
+      background: rgba(0,255,136,0.3);
+    }
   </style>
 </head>
 <body>
@@ -651,6 +750,16 @@
       </div>
 
       <div class="intro-card">
+        <h3>🎚️ 开仓设置<button class="edit-btn" onclick="openLeverageModal()">编辑</button></h3>
+        <ul class="strategy-list">
+          <li>
+            <span class="strategy-name">开仓杠杆倍数</span>
+            <span class="strategy-tag" id="leverageDisplay">加载中...</span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="intro-card">
         <h3>📊 买入信号条件</h3>
         <ul class="strategy-list">
           <li>
@@ -708,6 +817,22 @@
             <span class="strategy-tag">3 批</span>
           </li>
         </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 杠杆设置模态框 -->
+  <div id="leverageModal" class="modal">
+    <div class="modal-content">
+      <h3>🎚️ 设置开仓杠杆倍数</h3>
+      <div class="form-group">
+        <label>杠杆倍数 (1-100)</label>
+        <input type="number" id="leverageInput" min="1" max="100" placeholder="输入杠杆倍数">
+        <div class="form-hint">设置开仓时使用的杠杆倍数，范围1-100倍</div>
+      </div>
+      <div class="modal-buttons">
+        <button class="btn btn-secondary" onclick="closeLeverageModal()">取消</button>
+        <button class="btn btn-primary" onclick="saveLeverage()">保存</button>
       </div>
     </div>
   </div>
@@ -1204,11 +1329,86 @@
           `;
           document.getElementById('configList').innerHTML = configHtml;
         }
+
+        // 加载杠杆设置
+        await loadLeverageSettings();
       } catch(e) {
         console.error('加载配置失败:', e);
         document.getElementById('configList').innerHTML = '<p style="color:#ff4757;text-align:center;padding:20px;">加载失败</p>';
       }
     }
+
+    // 加载杠杆设置
+    async function loadLeverageSettings() {
+      try {
+        const res = await fetch(API_URL.replace('/trades', '/trading-settings'));
+        const data = await res.json();
+        
+        if (data.success && data.settings) {
+          document.getElementById('leverageDisplay').textContent = data.settings.leverage + 'x';
+        }
+      } catch(e) {
+        console.error('加载杠杆设置失败:', e);
+        document.getElementById('leverageDisplay').textContent = '加载失败';
+      }
+    }
+
+    // 打开杠杆设置模态框
+    async function openLeverageModal() {
+      try {
+        const res = await fetch(API_URL.replace('/trades', '/trading-settings'));
+        const data = await res.json();
+        
+        if (data.success && data.settings) {
+          document.getElementById('leverageInput').value = data.settings.leverage;
+        }
+      } catch(e) {
+        console.error('加载杠杆设置失败:', e);
+      }
+      document.getElementById('leverageModal').classList.add('show');
+    }
+
+    // 关闭杠杆设置模态框
+    function closeLeverageModal() {
+      document.getElementById('leverageModal').classList.remove('show');
+    }
+
+    // 保存杠杆设置
+    async function saveLeverage() {
+      const leverage = parseInt(document.getElementById('leverageInput').value);
+      
+      if (isNaN(leverage) || leverage < 1 || leverage > 100) {
+        showToast('杠杆倍数必须在1-100之间', true);
+        return;
+      }
+
+      try {
+        const res = await fetch(API_URL.replace('/trades', '/trading-settings'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ leverage })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+          document.getElementById('leverageDisplay').textContent = data.settings.leverage + 'x';
+          closeLeverageModal();
+          showToast('杠杆设置已保存');
+        } else {
+          showToast(data.error || '保存失败', true);
+        }
+      } catch(e) {
+        console.error('保存杠杆设置失败:', e);
+        showToast('保存失败', true);
+      }
+    }
+
+    // 点击模态框外部关闭
+    document.getElementById('leverageModal').addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeLeverageModal();
+      }
+    });
   </script>
 </body>
 </html>

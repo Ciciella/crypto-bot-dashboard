@@ -10,6 +10,19 @@
  */
 
 const { execSync } = require('child_process');
+const fs = require('fs');
+const path = require('path');
+
+// 读取交易设置
+function getTradingSettings() {
+  try {
+    const settingsPath = path.join(__dirname, 'trading-settings.json');
+    const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+    return settings;
+  } catch (e) {
+    return { leverage: 10 };
+  }
+}
 
 // ============ 配置 ============
 const CONFIG = {
@@ -107,6 +120,14 @@ async function getFundingRate(symbol) {
 // 开仓
 async function openPosition(symbol, side, price, amount) {
   try {
+    // 设置杠杆
+    const settings = getTradingSettings();
+    try {
+      await futuresApi.updateFuturesLeverage('usdt', symbol, { leverage: settings.leverage.toString() });
+    } catch (e) {
+      console.log('设置杠杆失败，使用默认杠杆:', e.message);
+    }
+
     const size = side === 'long' ? amount.toString() : (-amount).toString();
     const order = {
       contract: symbol,
@@ -115,7 +136,7 @@ async function openPosition(symbol, side, price, amount) {
       tif: 'gtc'
     };
     await futuresApi.createFuturesOrder('usdt', order);
-    log(`✅ ${side === 'long' ? '做多' : '做空'} ${symbol}: ${amount} @ $${price.toFixed(2)}`);
+    log(`✅ ${side === 'long' ? '做多' : '做空'} ${symbol}: ${amount} @ $${price.toFixed(2)} (杠杆: ${settings.leverage}x)`);
     return true;
   } catch (e) {
     log(`❌ 开仓失败: ${e.message}`);

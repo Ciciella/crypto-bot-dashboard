@@ -99,10 +99,20 @@ async function fetchData() {
 setInterval(fetchData, 30000);
 fetchData();
 
+// 读取请求体的辅助函数
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => resolve(body));
+    req.on('error', reject);
+  });
+}
+
 const server = http.createServer(async (req, res) => {
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   
   if (req.method === 'OPTIONS') {
@@ -298,7 +308,49 @@ const server = http.createServer(async (req, res) => {
         }
       });
       return;
-      
+
+    } else if (url === '/api/trading-settings' && req.method === 'GET') {
+      // 获取交易设置
+      const settingsPath = path.join(__dirname, 'trading-settings.json');
+      try {
+        const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, settings }));
+      } catch(e) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: e.message }));
+      }
+      return;
+
+    } else if (url === '/api/trading-settings' && req.method === 'POST') {
+      // 更新交易设置
+      try {
+        const body = await readBody(req);
+        const data = JSON.parse(body);
+        const leverage = parseInt(data.leverage);
+
+        if (isNaN(leverage) || leverage < 1 || leverage > 100) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: '杠杆倍数必须在1-100之间' }));
+          return;
+        }
+
+        const settings = {
+          leverage: leverage,
+          updatedAt: new Date().toISOString()
+        };
+
+        const settingsPath = path.join(__dirname, 'trading-settings.json');
+        fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, settings }));
+      } catch(e) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: e.message }));
+      }
+      return;
+
     } else {
       // 返回Dashboard HTML
       const htmlPath = path.join(__dirname, 'dashboard.html');
@@ -322,4 +374,5 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`   - /api/trades  (交易记录)`);
   console.log(`   - /api/positions (持仓信息)`);
   console.log(`   - /api/all     (汇总数据)`);
+  console.log(`   - /api/trading-settings (交易设置)`);
 });

@@ -82,6 +82,10 @@ open-fortune-claw/
 - **数据库**: SQLite
 - **前端**: HTML + JavaScript
 
+## API 文档
+
+- [Gate.io API v4 开发者文档](https://www.gate.com/docs/developers/apiv4/en/#application-for-marketers)
+
 ## 注意事项
 
 - ⚠️ 当前使用 Gate.io **测试网**，不会产生真实资金

@@ -9,6 +9,17 @@ const path = require('path');
 const http = require('http');
 const Database = require('better-sqlite3');
 
+// 读取交易设置
+function getTradingSettings() {
+  try {
+    const settingsPath = path.join(__dirname, 'trading-settings.json');
+    const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+    return settings;
+  } catch (e) {
+    return { leverage: 10 };
+  }
+}
+
 // ============ 数据库初始化 ============
 const DB_PATH = path.join(__dirname, 'trading.db');
 const db = new Database(DB_PATH);
@@ -690,6 +701,14 @@ async function getMarkPrice() {
 async function openLong(price, amount) {
   const startTime = Date.now();
   try {
+    // 设置杠杆
+    const settings = getTradingSettings();
+    try {
+      await futuresApi.updateFuturesLeverage('usdt', CONFIG.symbol, { leverage: settings.leverage.toString() });
+    } catch (e) {
+      console.log('设置杠杆失败，使用默认杠杆:', e.message);
+    }
+
     const order = {
       contract: CONFIG.symbol,
       size: amount.toString(),
@@ -707,6 +726,7 @@ async function openLong(price, amount) {
       orderPrice: price,
       fillPrice,
       orderId,
+      leverage: settings.leverage,
       latency: Date.now() - startTime
     });
     
@@ -752,6 +772,14 @@ async function closeLong(price, amount) {
 async function openShort(price, amount) {
   const startTime = Date.now();
   try {
+    // 设置杠杆
+    const settings = getTradingSettings();
+    try {
+      await futuresApi.updateFuturesLeverage('usdt', CONFIG.symbol, { leverage: settings.leverage.toString() });
+    } catch (e) {
+      console.log('设置杠杆失败，使用默认杠杆:', e.message);
+    }
+
     const order = {
       contract: CONFIG.symbol,
       size: (-amount).toString(),
@@ -768,6 +796,7 @@ async function openShort(price, amount) {
       orderPrice: price,
       fillPrice,
       orderId,
+      leverage: settings.leverage,
       latency: Date.now() - startTime
     });
     
