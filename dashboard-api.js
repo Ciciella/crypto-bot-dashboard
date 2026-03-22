@@ -114,7 +114,17 @@ const server = http.createServer(async (req, res) => {
   const url = req.url.split('?')[0];
 
   try {
-    if (url === '/api/status') {
+    if (url === '/api/test') {
+      // 测试接口
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        success: true,
+        message: '内网穿透访问成功！',
+        timestamp: new Date().toISOString(),
+        server: 'open-fortune-claw'
+      }));
+      
+    } else if (url === '/api/status') {
       // Bot状态
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({

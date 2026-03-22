@@ -18,3 +18,6 @@ trade-status.json
 
 # 日志
 *.log
+
+# 内网穿透指南 (包含临时地址)
+TUNNEL.md
