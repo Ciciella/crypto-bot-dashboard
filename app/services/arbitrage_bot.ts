@@ -1,4 +1,8 @@
 import { fetchPositionsAndBalance, futuresApi } from './gate_api.js'
+import { getDb } from './database.js'
+
+// ============ Strategy Identity ============
+const MY_STRATEGY = 'arbitrage'
 
 // ============ Configuration ============
 interface Config {
@@ -132,6 +136,16 @@ async function getCurrentPrice(symbol: string): Promise<number> {
   }
 }
 
+// ============ Strategy Check ============
+function isActiveStrategy(): boolean {
+  try {
+    const row = getDb().prepare('SELECT active_strategy FROM settings WHERE id = 1').get() as any
+    return row?.active_strategy === MY_STRATEGY
+  } catch {
+    return true
+  }
+}
+
 // ============ Arbitrage Logic ============
 async function checkFundingArbitrage() {
   const balance = await getFuturesBalance()
@@ -191,6 +205,13 @@ async function checkFundingArbitrage() {
 let botInterval: NodeJS.Timeout | null = null
 
 export async function startArbitrageBot() {
+  // Check if this strategy is active
+  if (!isActiveStrategy()) {
+    const row = getDb().prepare('SELECT active_strategy FROM settings WHERE id = 1').get() as any
+    log(`[ArbitrageBot] 当前策略是 ${row?.active_strategy || '未知'}，不启动 Arbitrage Bot`)
+    return
+  }
+
   log('资金费率套利机器人启动')
   log(`配置: ${CONFIG.symbols.join(', ')}, 阈值=${CONFIG.fundingThreshold}%`)
 
@@ -199,6 +220,14 @@ export async function startArbitrageBot() {
 
   // Schedule regular checks
   botInterval = setInterval(async () => {
+    // Check if strategy is still active
+    if (!isActiveStrategy()) {
+      const row = getDb().prepare('SELECT active_strategy FROM settings WHERE id = 1').get() as any
+      log(`[ArbitrageBot] 策略已切换到 ${row?.active_strategy || '未知'}，正在停止...`)
+      stopArbitrageBot()
+      return
+    }
+
     await checkFundingArbitrage()
   }, CONFIG.checkInterval)
 

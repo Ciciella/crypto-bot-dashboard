@@ -11,6 +11,7 @@ const ConfigController = () => import('#controllers/http/config_controller')
 const StatsController = () => import('#controllers/http/stats_controller')
 const DebugLogController = () => import('#controllers/http/debug_log_controller')
 const TradingSettingsController = () => import('#controllers/http/trading_settings_controller')
+const StrategyController = () => import('#controllers/http/strategy_controller')
 
 router.get('/api/test', [HealthController, 'test'])
 router.get('/api/status', [StatusController, 'index'])
@@ -24,6 +25,8 @@ router.get('/api/stats', [StatsController, 'index'])
 router.get('/api/debug', [DebugLogController, 'index'])
 router.get('/api/trading-settings', [TradingSettingsController, 'index'])
 router.put('/api/trading-settings', [TradingSettingsController, 'update'])
+router.get('/api/strategy', [StrategyController, 'index'])
+router.put('/api/strategy', [StrategyController, 'update'])
 
 // Serve index.html for all other routes
 router.get('*', async ({ response }) => {

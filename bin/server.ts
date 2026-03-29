@@ -109,6 +109,8 @@ const routes: [string, string, string, string][] = [
   ['GET', '/api/trading-settings', '#controllers/http/trading_settings_controller', 'index'],
   ['PUT', '/api/trading-settings', '#controllers/http/trading_settings_controller', 'update'],
   ['POST', '/api/trading-settings', '#controllers/http/trading_settings_controller', 'update'],
+  ['GET', '/api/strategy', '#controllers/http/strategy_controller', 'index'],
+  ['PUT', '/api/strategy', '#controllers/http/strategy_controller', 'update'],
 ]
 
 // Resolve # to absolute path

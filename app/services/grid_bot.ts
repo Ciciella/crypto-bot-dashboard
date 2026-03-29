@@ -1,7 +1,10 @@
-import { getDb } from './database.js'
 import { fetchPositionsAndBalance, futuresApi } from './gate_api.js'
+import { getDb } from './database.js'
 import fs from 'fs'
 import path from 'path'
+
+// ============ Strategy Identity ============
+const MY_STRATEGY = 'grid'
 
 // ============ Configuration ============
 interface Config {
@@ -47,6 +50,16 @@ let gridOrders: Array<{
 let currentPrice = 0
 let gridRange = { low: 0, high: 0 }
 let totalProfit = 0
+
+// ============ Strategy Check ============
+function isActiveStrategy(): boolean {
+  try {
+    const row = getDb().prepare('SELECT active_strategy FROM settings WHERE id = 1').get() as any
+    return row?.active_strategy === MY_STRATEGY
+  } catch {
+    return true
+  }
+}
 
 // ============ API Functions ============
 async function getFuturesBalance() {
@@ -211,6 +224,13 @@ async function checkAndFillOrders() {
 let botInterval: NodeJS.Timeout | null = null
 
 export async function startGridBot() {
+  // Check if this strategy is active
+  if (!isActiveStrategy()) {
+    const row = getDb().prepare('SELECT active_strategy FROM settings WHERE id = 1').get() as any
+    log(`[GridBot] 当前策略是 ${row?.active_strategy || '未知'}，不启动 Grid Bot`)
+    return
+  }
+
   log('网格交易机器人启动')
   log(`配置: ${CONFIG.symbol}, 网格数=${CONFIG.gridCount}, 区间±${CONFIG.priceRangePercent}%`)
 
@@ -226,6 +246,14 @@ export async function startGridBot() {
 
   // Schedule regular checks
   botInterval = setInterval(async () => {
+    // Check if strategy is still active
+    if (!isActiveStrategy()) {
+      const row = getDb().prepare('SELECT active_strategy FROM settings WHERE id = 1').get() as any
+      log(`[GridBot] 策略已切换到 ${row?.active_strategy || '未知'}，正在停止...`)
+      stopGridBot()
+      return
+    }
+
     if (CONFIG.emergencyStop) {
       log('紧急停止触发，停止检查')
       return

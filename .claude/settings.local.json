@@ -15,7 +15,8 @@
       "Bash(node -e \"import\\(''node:sqlite''\\).then\\(m => console.log\\(Object.keys\\(m\\)\\)\\)\")",
       "Bash(pkill -f \"node.*server\")",
       "Bash(netstat -ano)",
-      "Bash(taskkill /F /PID 15960)"
+      "Bash(taskkill /F /PID 15960)",
+      "Bash(where gh:*)"
     ]
   }
 }

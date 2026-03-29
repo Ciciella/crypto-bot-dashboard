@@ -30,7 +30,10 @@
       "Bash(node -e \"console.log\\(new Date\\(1774636878279\\).toISOString\\(\\)\\)\")",
       "Bash(findstr /i \"node trend\")",
       "Bash(ls -la *.db *.sqlite)",
-      "Bash(dir *.db *.sqlite)"
+      "Bash(dir *.db *.sqlite)",
+      "mcp__chrome-devtools__navigate_page",
+      "mcp__chrome-devtools__list_pages",
+      "WebFetch(domain:leonard-dark-values-surfaces.trycloudflare.com)"
     ]
   }
 }

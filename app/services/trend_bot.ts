@@ -1,6 +1,9 @@
 import { getDb, all, get, run } from './database.js'
 import { fetchPositionsAndBalance, futuresApi } from './gate_api.js'
 
+// ============ Strategy Identity ============
+const MY_STRATEGY = 'trend'
+
 // ============ Configuration ============
 interface TradingSettings {
   leverage: number
@@ -133,17 +136,35 @@ export function initializeDatabase() {
     CREATE TABLE IF NOT EXISTS settings (
       id INTEGER PRIMARY KEY CHECK (id = 1),
       leverage INTEGER NOT NULL DEFAULT 10,
+      active_strategy TEXT NOT NULL DEFAULT 'trend',
       updated_at TEXT NOT NULL
     )
   `)
 
+  // Add active_strategy column if it doesn't exist (for existing databases)
+  try {
+    db.exec("ALTER TABLE settings ADD COLUMN active_strategy TEXT NOT NULL DEFAULT 'trend'")
+  } catch {
+    // Column may already exist
+  }
+
   // Initialize settings row if not exists
   const settingsRow = db.prepare('SELECT leverage FROM settings WHERE id = 1').get()
   if (!settingsRow) {
-    db.prepare('INSERT INTO settings (id, leverage, updated_at) VALUES (1, 10, ?)').run(new Date().toISOString())
+    db.prepare('INSERT INTO settings (id, leverage, active_strategy, updated_at) VALUES (1, 10, ?, ?)').run('trend', new Date().toISOString())
   }
 
   console.log('[TrendBot] Database initialized')
+}
+
+// ============ Strategy Check ============
+function isActiveStrategy(): boolean {
+  try {
+    const row = getDb().prepare('SELECT active_strategy FROM settings WHERE id = 1').get() as any
+    return row?.active_strategy === MY_STRATEGY
+  } catch {
+    return true // Default to active if no settings
+  }
 }
 
 // ============ Settings Management ============
@@ -528,6 +549,14 @@ function canTrade(): boolean {
 let checkInterval = CONFIG.checkIntervalWithoutPosition
 
 async function tradeCycle() {
+  // Check if strategy is still active
+  if (!isActiveStrategy()) {
+    const row = getDb().prepare('SELECT active_strategy FROM settings WHERE id = 1').get() as any
+    log(`[TrendBot] 策略已切换到 ${row?.active_strategy || '未知'}，正在停止...`)
+    stopTrendBot()
+    return
+  }
+
   try {
     const position = await getPosition()
     const balance = await getFuturesBalance()
@@ -675,7 +704,14 @@ let botInterval: NodeJS.Timeout | null = null
 
 export async function startTrendBot() {
   initializeDatabase()
-  
+
+  // Check if this strategy is active
+  if (!isActiveStrategy()) {
+    const row = getDb().prepare('SELECT active_strategy FROM settings WHERE id = 1').get() as any
+    log(`[TrendBot] 当前策略是 ${row?.active_strategy || '未知'}，不启动 Trend Bot`)
+    return
+  }
+
   const settings = loadTradingSettings()
   CONFIG.leverage = settings.leverage
 

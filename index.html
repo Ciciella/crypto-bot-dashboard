@@ -205,6 +205,24 @@
       border-radius: 6px;
       font-size: 0.85rem;
     }
+    select {
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23fff' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 30px !important;
+    }
+    select option {
+      background: #1a1a2e;
+      color: #fff;
+    }
+    .select-theme {
+      width: 100%;
+      padding: 12px 15px;
+      border-radius: 8px;
+      font-size: 1rem;
+    }
     .debug-controls button {
       background: rgba(0,255,136,0.2);
       border: none;
@@ -760,6 +778,16 @@
       </div>
 
       <div class="intro-card">
+        <h3>🎯 交易策略<button class="edit-btn" onclick="openStrategyModal()">切换</button></h3>
+        <ul class="strategy-list">
+          <li>
+            <span class="strategy-name">当前策略</span>
+            <span class="strategy-tag" id="strategyDisplay">加载中...</span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="intro-card">
         <h3>📊 买入信号条件</h3>
         <ul class="strategy-list">
           <li>
@@ -833,6 +861,26 @@
       <div class="modal-buttons">
         <button class="btn btn-secondary" onclick="closeLeverageModal()">取消</button>
         <button class="btn btn-primary" onclick="saveLeverage()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 策略切换模态框 -->
+  <div id="strategyModal" class="modal">
+    <div class="modal-content">
+      <h3>🎯 选择交易策略</h3>
+      <div class="form-group">
+        <label>策略</label>
+        <select id="strategySelect" class="select-theme">
+          <option value="trend">趋势交易策略</option>
+          <option value="grid">网格交易策略</option>
+          <option value="arbitrage">资金费率套利</option>
+        </select>
+        <div class="form-hint">切换策略后需要重新运行对应的机器人</div>
+      </div>
+      <div class="modal-buttons">
+        <button class="btn btn-secondary" onclick="closeStrategyModal()">取消</button>
+        <button class="btn btn-primary" onclick="saveStrategy()">保存</button>
       </div>
     </div>
   </div>
@@ -1332,6 +1380,9 @@
 
         // 加载杠杆设置
         await loadLeverageSettings();
+
+        // 加载策略设置
+        await loadStrategy();
       } catch(e) {
         console.error('加载配置失败:', e);
         document.getElementById('configList').innerHTML = '<p style="color:#ff4757;text-align:center;padding:20px;">加载失败</p>';
@@ -1407,6 +1458,78 @@
     document.getElementById('leverageModal').addEventListener('click', function(e) {
       if (e.target === this) {
         closeLeverageModal();
+      }
+    });
+
+    // 策略中文映射
+    const strategyNames = {
+      'trend': '趋势交易策略',
+      'grid': '网格交易策略',
+      'arbitrage': '资金费率套利'
+    };
+
+    // 加载策略设置
+    async function loadStrategy() {
+      try {
+        const res = await fetch(API_URL.replace('/trades', '/strategy'));
+        const data = await res.json();
+        if (data.success) {
+          document.getElementById('strategyDisplay').textContent = strategyNames[data.strategy] || data.strategy;
+        }
+      } catch(e) {
+        console.error('加载策略失败:', e);
+        document.getElementById('strategyDisplay').textContent = '加载失败';
+      }
+    }
+
+    // 打开策略切换模态框
+    async function openStrategyModal() {
+      try {
+        const res = await fetch(API_URL.replace('/trades', '/strategy'));
+        const data = await res.json();
+        if (data.success) {
+          document.getElementById('strategySelect').value = data.strategy;
+        }
+      } catch(e) {
+        console.error('加载策略失败:', e);
+      }
+      document.getElementById('strategyModal').classList.add('show');
+    }
+
+    // 关闭策略模态框
+    function closeStrategyModal() {
+      document.getElementById('strategyModal').classList.remove('show');
+    }
+
+    // 保存策略设置
+    async function saveStrategy() {
+      const strategy = document.getElementById('strategySelect').value;
+
+      try {
+        const res = await fetch(API_URL.replace('/trades', '/strategy'), {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ strategy })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          document.getElementById('strategyDisplay').textContent = strategyNames[strategy];
+          closeStrategyModal();
+          showToast('策略已切换为 ' + strategyNames[strategy]);
+        } else {
+          showToast(data.error || '切换失败', true);
+        }
+      } catch(e) {
+        console.error('保存策略失败:', e);
+        showToast('切换失败', true);
+      }
+    }
+
+    // 点击策略模态框外部关闭
+    document.getElementById('strategyModal').addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeStrategyModal();
       }
     });
   </script>
