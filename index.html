@@ -68,6 +68,41 @@
     .stat-card .value.green { color: #00ff88; }
     .stat-card .value.red { color: #ff4757; }
 
+    .position-card {
+      background: rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      backdrop-filter: blur(10px);
+    }
+    .position-card .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .position-card .card-symbol {
+      font-weight: bold;
+      font-size: 1rem;
+    }
+    .position-card .card-side {
+      font-size: 0.8rem;
+      padding: 3px 10px;
+      border-radius: 12px;
+    }
+    .position-card .card-side.long { background: rgba(0,255,136,0.2); color: #00ff88; }
+    .position-card .card-side.short { background: rgba(255,71,87,0.2); color: #ff4757; }
+    .position-card .card-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+      font-size: 0.85rem;
+    }
+    .position-card .card-label { color: #888; }
+    .position-card .card-value { font-weight: 500; }
+    .position-card .card-value.positive { color: #00ff88; }
+    .position-card .card-value.negative { color: #ff4757; }
+
     .section { margin-bottom: 20px; }
     .section h2 { margin-bottom: 10px; color: #00ff88; font-size: 1.1rem; }
 
@@ -568,22 +603,8 @@
 
       <div class="section">
         <h2>📈 当前持仓</h2>
-        <div class="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>交易对</th>
-                <th>方向</th>
-                <th>数量</th>
-                <th>开仓价</th>
-                <th>当前价</th>
-                <th>盈亏</th>
-              </tr>
-            </thead>
-            <tbody id="positionsTable">
-              <tr><td colspan="6" style="text-align:center">加载中...</td></tr>
-            </tbody>
-          </table>
+        <div id="positionsContainer" class="positions-container">
+          <div style="text-align:center;padding:20px;color:#888;">加载中...</div>
         </div>
       </div>
 
@@ -1009,16 +1030,19 @@
         // 更新持仓
         const positionsHtml = data.positions.map(p => {
           const pnl = p.pnl || 0;
-          return `<tr>
-            <td>${(p.symbol || '').replace('BTC_USDT', 'BTC')}</td>
-            <td class="side-${p.side}">${p.side === 'long' ? '多' : '空'}</td>
-            <td>${p.amount || 0}</td>
-            <td>$${(p.entry_price || 0).toLocaleString()}</td>
-            <td>$${(p.current_price || 0).toLocaleString()}</td>
-            <td class="${pnl >= 0 ? 'type-open' : 'type-close'}">${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}</td>
-          </tr>`;
+          const pnlClass = pnl >= 0 ? 'positive' : 'negative';
+          return `<div class="position-card">
+            <div class="card-header">
+              <span class="card-symbol">${(p.symbol || '').replace('BTC_USDT', 'BTC')}</span>
+              <span class="card-side ${p.side}">${p.side === 'long' ? '多' : '空'}</span>
+            </div>
+            <div class="card-row"><span class="card-label">数量</span><span class="card-value">${p.amount || 0}</span></div>
+            <div class="card-row"><span class="card-label">开仓价</span><span class="card-value">$${(p.entry_price || 0).toLocaleString()}</span></div>
+            <div class="card-row"><span class="card-label">当前价</span><span class="card-value">$${(p.current_price || 0).toLocaleString()}</span></div>
+            <div class="card-row"><span class="card-label">盈亏</span><span class="card-value ${pnlClass}">${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}</span></div>
+          </div>`;
         }).join('');
-        document.getElementById('positionsTable').innerHTML = positionsHtml || '<tr><td colspan="6" style="text-align:center">无持仓</td></tr>';
+        document.getElementById('positionsContainer').innerHTML = positionsHtml || '<div style="text-align:center;padding:20px;color:#888;">无持仓</div>';
 
         // 获取检查日志
         try {
