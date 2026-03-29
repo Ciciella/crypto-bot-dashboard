@@ -23,9 +23,6 @@ dist/
 # Cache
 .cache/
 
-# Status files
-trade-status.json
-
 # Temporary files
 ~
 TUNNEL.md

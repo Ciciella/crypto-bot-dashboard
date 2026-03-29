@@ -25,8 +25,9 @@ function getCounts(db: DatabaseSync): Record<string, number> {
 }
 
 async function main() {
-  const dbPath = path.join(process.cwd(), 'trading.db')
-  const db = new DatabaseSync(dbPath)
+  const DB_DIR = path.join(process.cwd(), 'data')
+  const DB_PATH = path.join(DB_DIR, 'trading.db')
+  const db = new DatabaseSync(DB_PATH)
 
   console.log('='.repeat(50))
   console.log('[ResetData] 重置交易数据')
