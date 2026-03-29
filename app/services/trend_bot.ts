@@ -1,6 +1,21 @@
 import { getDb, all, get, run } from './database.js'
 import { fetchPositionsAndBalance, futuresApi } from './gate_api.js'
 
+async function getMarketPrice(): Promise<number> {
+  try {
+    const url = 'https://api.gateio.ws/api/v4/futures/usdt/candlesticks?contract=BTC_USDT&interval=1m&limit=1'
+    const response = await fetch(url)
+    const data = await response.json()
+    if (Array.isArray(data) && data.length > 0) {
+      return parseFloat(data[0].c)
+    }
+    return 0
+  } catch (e: any) {
+    log(`[TrendBot] 获取市场价格失败: ${e.message}`)
+    return 0
+  }
+}
+
 // ============ Strategy Identity ============
 const MY_STRATEGY = 'trend'
 
@@ -335,21 +350,19 @@ async function closeLong(price: number, size: number): Promise<boolean> {
 
 async function getCandlesticks(interval: string = '15m', limit: number = 100) {
   try {
-    const currency = CONFIG.symbol.replace('_USDT', '/USDT')
-    const url = `https://api-testnet.gateapi.io/api/v4/futures/usdt/candlesticks?currency_pair=${currency}&interval=${interval}&limit=${limit}`
+    const url = `https://api.gateio.ws/api/v4/futures/usdt/candlesticks?contract=BTC_USDT&interval=${interval}&limit=${limit}`
     
     const response = await fetch(url)
     const data = await response.json()
     
     if (Array.isArray(data)) {
-      // Gate.io returns [timestamp, volume, close, high, low, open]
       return data.map((k: any) => ({
-        time: k[0] / 1000,
-        open: parseFloat(k[5]),
-        high: parseFloat(k[3]),
-        low: parseFloat(k[4]),
-        close: parseFloat(k[2]),
-        volume: parseFloat(k[1]),
+        time: k.t,
+        open: parseFloat(k.o),
+        high: parseFloat(k.h),
+        low: parseFloat(k.l),
+        close: parseFloat(k.c),
+        volume: parseFloat(k.v),
       }))
     }
     return []
@@ -560,7 +573,10 @@ async function tradeCycle() {
   try {
     const position = await getPosition()
     const balance = await getFuturesBalance()
-    const currentPrice = position?.current_price || cachedBalance?.total || 0
+    let currentPrice = position?.current_price || 0
+    if (!currentPrice) {
+      currentPrice = await getMarketPrice()
+    }
 
     if (!currentPrice) {
       log('[TrendBot] 无法获取当前价格')
