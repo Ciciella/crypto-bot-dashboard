@@ -304,6 +304,11 @@ let dcaPositionCount = 0
 let dcaAvgEntryPrice = 0
 let lastAddPositionTime = 0
 
+// Trailing Stop State
+let trailingActive = false
+let highestPrice = 0
+let trailingTP = 0
+
 // Signal history
 const signalHistory = {
   lastTradeTime: 0,
@@ -782,6 +787,13 @@ function resetDCAState() {
   log('[TrendBot] DCA状态已重置')
 }
 
+function resetTrailingState() {
+  trailingActive = false
+  highestPrice = 0
+  trailingTP = 0
+  log('[TrendBot] 追踪止损状态已重置')
+}
+
 function recordTrade(type: string, side: string, amount: number, price: number, reason: string, pnl: number = 0) {
   try {
     const stmt = getDb().prepare(`
@@ -854,6 +866,7 @@ async function tradeCycle() {
           recordTrade('close', 'long', position.size, currentPrice, `止损(${pnlPercent.toFixed(2)}%)`, pnlPercent)
           signalHistory.lastTradeTime = Date.now()
           resetDCAState()
+          resetTrailingState()
         }
         return
       }
@@ -866,6 +879,7 @@ async function tradeCycle() {
           recordTrade('close', 'long', position.size, currentPrice, `止盈(${pnlPercent.toFixed(2)}%)`, pnlPercent)
           signalHistory.lastTradeTime = Date.now()
           resetDCAState()
+          resetTrailingState()
         }
         return
       }
@@ -904,6 +918,7 @@ async function tradeCycle() {
           recordTrade('close', 'long', position.size, currentPrice, signals.reason.join(' + '), pnlPercent)
           signalHistory.lastTradeTime = Date.now()
           resetDCAState()
+          resetTrailingState()
         }
       }
     } else {
@@ -922,6 +937,7 @@ async function tradeCycle() {
           recordTrade('open', 'long', amount, currentPrice, signals.reason.join(' + '))
           signalHistory.lastTradeTime = Date.now()
           lastAddPositionTime = Date.now()
+          trailingActive = false
         }
       }
     }

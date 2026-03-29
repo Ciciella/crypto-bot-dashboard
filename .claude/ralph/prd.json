@@ -66,8 +66,8 @@
         "Typecheck passes"
       ],
       "priority": 5,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added trailingActive, highestPrice, trailingTP vars + resetTrailingState() function"
     },
     {
       "id": "US-006",
