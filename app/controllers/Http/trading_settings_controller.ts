@@ -3,7 +3,7 @@ import fs from 'fs'
 import path from 'path'
 
 const SETTINGS_PATH = path.join(process.cwd(), 'trading-settings.json')
-const MAX_LEVERAGE = 10
+const MAX_LEVERAGE = 100
 
 export default class TradingSettingsController {
   async index({ response }: HttpContext) {

@@ -108,6 +108,7 @@ const routes: [string, string, string, string][] = [
   ['GET', '/api/debug', '#controllers/http/debug_log_controller', 'index'],
   ['GET', '/api/trading-settings', '#controllers/http/trading_settings_controller', 'index'],
   ['PUT', '/api/trading-settings', '#controllers/http/trading_settings_controller', 'update'],
+  ['POST', '/api/trading-settings', '#controllers/http/trading_settings_controller', 'update'],
 ]
 
 // Resolve # to absolute path
@@ -174,5 +175,5 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`   - GET /api/config`)
   console.log(`   - GET /api/stats`)
   console.log(`   - GET /api/debug`)
-  console.log(`   - GET/PUT /api/trading-settings`)
+  console.log(`   - GET/PUT/POST /api/trading-settings`)
 })
