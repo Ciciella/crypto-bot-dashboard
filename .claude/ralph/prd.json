@@ -94,8 +94,8 @@
         "Typecheck passes"
       ],
       "priority": 7,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added trailing logic: update highestPrice, recalc trailingTP, cap at maxTrailingTP, trigger stop on drop"
     },
     {
       "id": "US-008",

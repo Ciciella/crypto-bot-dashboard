@@ -51,3 +51,14 @@
 - **Learnings for future iterations:**
   - Trailing stop activation replaces the immediate take profit - the bot now trails instead of closing at fixed profit
 ---
+
+## 2026-03-30 - US-007
+- What was implemented: Implemented trailing stop trailing logic
+  - While trailingActive, updates highestPrice when current price exceeds it
+  - Recalculates trailingTP as highestPrice minus trailingPercent
+  - Caps trailingTP at maxTrailingTP (as percentage drop from highest)
+  - Triggers stop when (highestPrice - currentPrice) / highestPrice >= trailingPercent / 100
+- Files changed: app/services/trend_bot.ts
+- **Learnings for future iterations:**
+  - The trailing stop check runs before DCA check - this is correct priority since we want to exit before adding more
+---

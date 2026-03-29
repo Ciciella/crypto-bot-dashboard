@@ -879,6 +879,36 @@ async function tradeCycle() {
         log(`[TrendBot] 激活追踪止损! 盈利${pnlPercent.toFixed(2)}%, 初始追踪价=${trailingTP.toFixed(2)}`)
       }
 
+      // Trailing stop trailing logic
+      if (trailingActive) {
+        // Update highest price if current price exceeds it
+        if (currentPrice > highestPrice) {
+          highestPrice = currentPrice
+          log(`[TrendBot] 更新最高价: ${highestPrice.toFixed(2)}`)
+        }
+
+        // Recalculate trailing TP
+        const newTrailingTP = highestPrice - (highestPrice * CONFIG.trailingPercent / 100)
+
+        // Ensure trailingTP never exceeds maxTrailingTP (as percentage drop from highest)
+        const maxTPPrice = highestPrice * (1 - CONFIG.maxTrailingTP / 100)
+        trailingTP = Math.min(newTrailingTP, maxTPPrice)
+
+        // Check if price has dropped enough to trigger trailing stop
+        const priceDropPercent = (highestPrice - currentPrice) / highestPrice
+        if (priceDropPercent >= CONFIG.trailingPercent / 100) {
+          log(`[TrendBot] 触发追踪止损! 跌幅${(priceDropPercent * 100).toFixed(2)}% >= ${CONFIG.trailingPercent}%, 追踪价=${trailingTP.toFixed(2)}`)
+          if (canTrade()) {
+            await closeLong(currentPrice, position.size)
+            recordTrade('close', 'long', position.size, currentPrice, `追踪止损(跌幅${(priceDropPercent * 100).toFixed(2)}%))`, pnlPercent)
+            signalHistory.lastTradeTime = Date.now()
+            resetDCAState()
+            resetTrailingState()
+          }
+          return
+        }
+      }
+
       // DCA check
       const canAddPosition = CONFIG.dcaEnabled &&
         dcaPositionCount < CONFIG.dcaMaxPositions &&
