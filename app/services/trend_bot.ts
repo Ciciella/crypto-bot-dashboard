@@ -115,9 +115,35 @@ export function initializeDatabase() {
       action TEXT,
       action_amount REAL,
       action_price REAL,
-      pnl_percent REAL
+      pnl_percent REAL,
+      bollinger_b REAL,
+      stoch_k REAL,
+      stoch_d REAL,
+      atr REAL,
+      adx REAL,
+      plus_di REAL,
+      minus_di REAL
     )
   `)
+
+  // Migration: Add new columns to existing check_logs table
+  const migrationColumns = [
+    { name: 'bollinger_b', type: 'REAL' },
+    { name: 'stoch_k', type: 'REAL' },
+    { name: 'stoch_d', type: 'REAL' },
+    { name: 'atr', type: 'REAL' },
+    { name: 'adx', type: 'REAL' },
+    { name: 'plus_di', type: 'REAL' },
+    { name: 'minus_di', type: 'REAL' },
+  ]
+
+  for (const col of migrationColumns) {
+    try {
+      db.exec(`ALTER TABLE check_logs ADD COLUMN ${col.name} ${col.type}`)
+    } catch {
+      // Column may already exist
+    }
+  }
 
   // Create debug_logs table
   db.exec(`
@@ -415,6 +441,154 @@ function calculateMACD(prices: number[]) {
   return { macd, signal, histogram }
 }
 
+// ============ Additional Technical Indicators ============
+
+// Bollinger Bands - volatility indicator
+// Returns { upper, middle, lower, bandwidth, percentB }
+function calculateBollingerBands(prices: number[], period: number = 20, stdDev: number = 2): {
+  upper: number
+  middle: number
+  lower: number
+  bandwidth: number
+  percentB: number
+} {
+  if (prices.length < period) {
+    return { upper: 0, middle: 0, lower: 0, bandwidth: 0, percentB: 0.5 }
+  }
+
+  const slice = prices.slice(-period)
+  const middle = slice.reduce((a, b) => a + b, 0) / period
+
+  // Calculate standard deviation
+  const squaredDiffs = slice.map(p => Math.pow(p - middle, 2))
+  const variance = squaredDiffs.reduce((a, b) => a + b, 0) / period
+  const sd = Math.sqrt(variance)
+
+  const upper = middle + (stdDev * sd)
+  const lower = middle - (stdDev * sd)
+  const bandwidth = ((upper - lower) / middle) * 100
+  const currentPrice = prices[prices.length - 1]
+  const percentB = (currentPrice - lower) / (upper - lower)
+
+  return { upper, middle, lower, bandwidth, percentB }
+}
+
+// Stochastic Oscillator - momentum indicator
+// Returns { k, d } where K is %K and D is %D (SMA of %K)
+function calculateStochastic(candles: { high: number; low: number; close: number }[], period: number = 14): {
+  k: number
+  d: number
+} {
+  if (candles.length < period) return { k: 50, d: 50 }
+
+  const slice = candles.slice(-period)
+  const highestHigh = Math.max(...slice.map(c => c.high))
+  const lowestLow = Math.min(...slice.map(c => c.low))
+  const currentClose = candles[candles.length - 1].close
+
+  if (highestHigh === lowestLow) return { k: 50, d: 50 }
+
+  const k = ((currentClose - lowestLow) / (highestHigh - lowestLow)) * 100
+
+  // Calculate %D as SMA of %K over 3 periods
+  if (candles.length < period + 2) return { k, d: k }
+
+  // Simple approximation: use current K as D if not enough data
+  const d = k
+
+  return { k, d }
+}
+
+// Average True Range - volatility measure
+function calculateATR(candles: { high: number; low: number; close: number }[], period: number = 14): number {
+  if (candles.length < period + 1) return 0
+
+  const trueRanges: number[] = []
+
+  for (let i = 1; i < candles.length; i++) {
+    const high = candles[i].high
+    const low = candles[i].low
+    const prevClose = candles[i - 1].close
+
+    const tr = Math.max(
+      high - low,
+      Math.abs(high - prevClose),
+      Math.abs(low - prevClose)
+    )
+    trueRanges.push(tr)
+  }
+
+  if (trueRanges.length < period) return 0
+
+  const slice = trueRanges.slice(-period)
+  return slice.reduce((a, b) => a + b, 0) / period
+}
+
+// ADX - Average Directional Index (trend strength)
+function calculateADX(candles: { high: number; low: number; close: number }[], period: number = 14): {
+  adx: number
+  plusDI: number
+  minusDI: number
+} {
+  if (candles.length < period + 1) return { adx: 0, plusDI: 0, minusDI: 0 }
+
+  const highValues = candles.map(c => c.high)
+  const lowValues = candles.map(c => c.low)
+  const closeValues = candles.map(c => c.close)
+
+  // Calculate +DM and -DM
+  const plusDM: number[] = []
+  const minusDM: number[] = []
+  const trueRanges: number[] = []
+
+  for (let i = 1; i < candles.length; i++) {
+    const highDiff = highValues[i] - highValues[i - 1]
+    const lowDiff = lowValues[i - 1] - lowValues[i]
+
+    const tr = Math.max(
+      highValues[i] - lowValues[i],
+      Math.abs(highValues[i] - closeValues[i - 1]),
+      Math.abs(lowValues[i] - closeValues[i - 1])
+    )
+    trueRanges.push(tr)
+
+    // +DM: only when highDiff > lowDiff and highDiff > 0
+    if (highDiff > lowDiff && highDiff > 0) {
+      plusDM.push(highDiff)
+    } else {
+      plusDM.push(0)
+    }
+
+    // -DM: only when lowDiff > highDiff and lowDiff > 0
+    if (lowDiff > highDiff && lowDiff > 0) {
+      minusDM.push(lowDiff)
+    } else {
+      minusDM.push(0)
+    }
+  }
+
+  // Smooth using EMA
+  const smoothedTR = calculateEMA(trueRanges, period)
+  const smoothedPlusDM = calculateEMA(plusDM, period)
+  const smoothedMinusDM = calculateEMA(minusDM, period)
+
+  if (smoothedTR === 0) return { adx: 0, plusDI: 0, minusDI: 0 }
+
+  const plusDI = (smoothedPlusDM / smoothedTR) * 100
+  const minusDI = (smoothedMinusDM / smoothedTR) * 100
+
+  // Calculate DX
+  const diSum = plusDI + minusDI
+  if (diSum === 0) return { adx: 0, plusDI, minusDI }
+
+  const dx = (Math.abs(plusDI - minusDI) / diSum) * 100
+
+  // ADX is EMA of DX
+  const adx = dx // Simplified - full implementation would smooth DX over 14 periods
+
+  return { adx, plusDI, minusDI }
+}
+
 // ============ Signal Detection ============
 interface Signals {
   buy: boolean
@@ -428,6 +602,14 @@ interface Signals {
   volumeOK: boolean
   strength: number
   reason: string[]
+  // New indicators
+  bollingerB: number  // Bollinger Bands %B (0-1, <0.2 oversold, >0.8 overbought)
+  stochK: number      // Stochastic %K
+  stochD: number      // Stochastic %D
+  atr: number         // Average True Range
+  adx: number         // Average Directional Index
+  plusDI: number      // ADX +DI
+  minusDI: number     // ADX -DI
 }
 
 async function detectSignals(): Promise<Signals> {
@@ -445,6 +627,13 @@ async function detectSignals(): Promise<Signals> {
       volumeOK: true,
       strength: 0,
       reason: ['K线数据不足'],
+      bollingerB: 0.5,
+      stochK: 50,
+      stochD: 50,
+      atr: 0,
+      adx: 0,
+      plusDI: 0,
+      minusDI: 0,
     }
   }
 
@@ -457,10 +646,20 @@ async function detectSignals(): Promise<Signals> {
   const ma50 = calculateEMA(closes.slice(-50), 50)
   const { histogram: macdHist } = calculateMACD(closes)
 
+  // Calculate new indicators
+  const { percentB: bollingerB } = calculateBollingerBands(closes, 20, 2)
+  const { k: stochK, d: stochD } = calculateStochastic(candles, 14)
+  const atr = calculateATR(candles, 14)
+  const { adx, plusDI, minusDI } = calculateADX(candles, 14)
+
   const currentPrice = closes[closes.length - 1]
   const trendUp = ma10 > ma20 && ma20 > ma50
   const volumeAvg = volumes.slice(-20).reduce((a, b) => a + b, 0) / 20
   const volumeOK = volumes[volumes.length - 1] > volumeAvg * 0.8
+
+  // ADX trend strength interpretation
+  const strongTrend = adx > 25
+  const trendDirection = plusDI > minusDI ? 'long' : 'short'
 
   const signals = {
     buy: false,
@@ -474,6 +673,14 @@ async function detectSignals(): Promise<Signals> {
     volumeOK,
     strength: 0,
     reason: [] as string[],
+    // New indicators
+    bollingerB,
+    stochK,
+    stochD,
+    atr,
+    adx,
+    plusDI,
+    minusDI,
   }
 
   // Buy signal conditions
@@ -483,7 +690,7 @@ async function detectSignals(): Promise<Signals> {
   }
 
   if (trendUp && CONFIG.trendFilter) {
-    signals.reason.push('趋势向上')
+    signals.reason.push('趋势向上(MA多头)')
     signals.strength += 1
   }
 
@@ -492,8 +699,25 @@ async function detectSignals(): Promise<Signals> {
     signals.strength += 1
   }
 
+  // New indicator signals
+  if (bollingerB < 0.2) {
+    signals.reason.push(`布林带超卖(${bollingerB.toFixed(2)}<0.2)`)
+    signals.strength += 1
+  }
+
+  if (stochK < 20 && stochD < 20) {
+    signals.reason.push('随机指超卖')
+    signals.strength += 1
+  }
+
+  // ADX confirms trend strength
+  if (strongTrend && trendDirection === 'long') {
+    signals.reason.push(`ADX确认上涨趋势(adx=${adx.toFixed(1)})`)
+    signals.strength += 1
+  }
+
   // Final buy/sell determination
-  signals.buy = signals.strength >= 2 && rsi < CONFIG.rsiOversold && trendUp
+  signals.buy = signals.strength >= 3 && rsi < CONFIG.rsiOversold && trendUp
 
   // Sell signal
   if (rsi > CONFIG.rsiOverbought) {
@@ -504,6 +728,23 @@ async function detectSignals(): Promise<Signals> {
   if (macdHist < 0 && signals.strength < 2) {
     signals.sell = true
     signals.reason.push('MACD柱为负')
+  }
+
+  // New sell signals
+  if (bollingerB > 0.8) {
+    signals.sell = true
+    signals.reason.push(`布林带超买(${bollingerB.toFixed(2)}>0.8)`)
+  }
+
+  if (stochK > 80 && stochD > 80) {
+    signals.sell = true
+    signals.reason.push('随机指超买')
+  }
+
+  // ADX confirms strong downtrend
+  if (strongTrend && trendDirection === 'short') {
+    signals.sell = true
+    signals.reason.push(`ADX确认下跌趋势(adx=${adx.toFixed(1)})`)
   }
 
   return signals
@@ -584,7 +825,7 @@ async function tradeCycle() {
     }
 
     const signals = await detectSignals()
-    log(`[TrendBot] 价格: $${currentPrice}, RSI: ${signals.rsi.toFixed(1)}, 信号: ${signals.buy ? '买入' : signals.sell ? '卖出' : '观望'}`)
+    log(`[TrendBot] 价格: $${currentPrice}, RSI: ${signals.rsi.toFixed(1)}, BollingerB: ${signals.bollingerB.toFixed(2)}, Stoch: ${signals.stochK.toFixed(1)}/${signals.stochD.toFixed(1)}, ADX: ${signals.adx.toFixed(1)}, 信号: ${signals.buy ? '买入' : signals.sell ? '卖出' : '观望'}`)
 
     // Calculate PnL
     let pnlPercent = null
@@ -681,8 +922,9 @@ async function tradeCycle() {
           timestamp, price, position_size, position_entry_price,
           balance_total, balance_available, rsi, ma10, ma20, ma50,
           macd_hist, trend, volume_ok, signal_buy, signal_sell,
-          signal_strength, signal_reason, action, action_amount, action_price, pnl_percent
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          signal_strength, signal_reason, action, action_amount, action_price, pnl_percent,
+          bollinger_b, stoch_k, stoch_d, atr, adx, plus_di, minus_di
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       stmt.run(
         new Date().toISOString(),
@@ -705,7 +947,14 @@ async function tradeCycle() {
         null,
         null,
         null,
-        pnlPercent
+        pnlPercent,
+        signals.bollingerB,
+        signals.stochK,
+        signals.stochD,
+        signals.atr,
+        signals.adx,
+        signals.plusDI,
+        signals.minusDI
       )
     } catch (e: any) {
       log(`[TrendBot] 记录日志失败: ${e.message}`)

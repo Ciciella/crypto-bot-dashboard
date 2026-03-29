@@ -16,7 +16,16 @@
       "Bash(pkill -f \"node.*server\")",
       "Bash(netstat -ano)",
       "Bash(taskkill /F /PID 15960)",
-      "Bash(where gh:*)"
+      "Bash(where gh:*)",
+      "Bash(npx tsc:*)",
+      "Bash(node --check app/services/trend_bot.ts)",
+      "Bash(npx tsx:*)",
+      "Bash(timeout 5 npm run dev)",
+      "Bash(npx kill-port:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Read(//c/Users/18742/.openclaw/workspace/**)",
+      "Bash(gh repo:*)"
     ]
   }
 }
