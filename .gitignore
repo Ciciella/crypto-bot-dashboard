@@ -1,25 +1,32 @@
-# 忽略敏感文件
-trading.db
-*.db
+# Environment variables (contains secrets)
+.env
+.env.local
+.env.*.local
+
+# Secrets file
 secrets.js
 secrets.json
-!secrets.js.example
 
-# 状态文件 (本地运行生成)
+# Database
+trading.db
+*.db
+
+# Logs
+*.log
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Cache
+.cache/
+
+# Status files
 bot-status.json
 trade-status.json
 
-# Node modules (如果需要)
-# node_modules/
-
-# 环境变量
-.env
-.env.local
-
-# 日志
-*.log
-
-# 内网穿透指南 (包含临时地址)
-TUNNEL.md
+# Temporary files
 ~
-node_modules
+TUNNEL.md

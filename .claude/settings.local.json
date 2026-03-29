@@ -1,7 +1,21 @@
 {
   "permissions": {
     "allow": [
-      "Bash(openclaw configure:*)"
+      "Bash(openclaw configure:*)",
+      "Bash(npm install:*)",
+      "Bash(node ace:*)",
+      "Bash(npx ace:*)",
+      "Bash(node bin/ace.ts serve --help)",
+      "Bash(node bin/ace.ts --help)",
+      "Bash(node bin/ace.ts list)",
+      "Bash(timeout 5 node bin/ace.ts serve)",
+      "Bash(timeout 5 node bin/server.ts)",
+      "Bash(pkill -f \"node.*server.ts\")",
+      "Bash(pkill -f \"tsx.*server\")",
+      "Bash(node -e \"import\\(''node:sqlite''\\).then\\(m => console.log\\(Object.keys\\(m\\)\\)\\)\")",
+      "Bash(pkill -f \"node.*server\")",
+      "Bash(netstat -ano)",
+      "Bash(taskkill /F /PID 15960)"
     ]
   }
 }

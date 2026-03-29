@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(taskkill //F //PID 14044)",
+      "Read(//c/Users/18742/.openclaw/workspace/open-fortune-claw/**)",
+      "Bash(taskkill //F //PID 15776)",
+      "Bash(taskkill //F //PID 16680)",
+      "Bash(taskkill //F //PID 18316)",
+      "Bash(tasklist)",
+      "Bash(findstr cloudflared:*)",
+      "Bash(taskkill //F //IM cloudflared.exe)",
+      "Bash(curl -s http://localhost:3000/api/positions)",
+      "Bash(taskkill //F //PID 7692)",
+      "Bash(taskkill //F //PID 11328)",
+      "Bash(sqlite3 trading.db \"SELECT * FROM check_logs ORDER BY id DESC LIMIT 1;\")",
+      "Bash(node -e \":*)",
+      "Bash(curl -s -H \"KEY: 86af450b23a32b499118d5ab6e67cd00\" -H \"SECRET: 8c1486a249bbccfc2c10e11115a7aa10fbd820beec01b588dadd70259ab599f9\" \"https://api-testnet.gateapi.io/api/v4/futures/usdt/positions\")",
+      "Bash(npx tsx -e \":*)",
+      "Bash(npx tsx:*)",
+      "Bash(curl -s http://localhost:3000/api/trades)",
+      "Bash(curl -s http://localhost:3000/api/logs?limit=5)",
+      "Bash(curl -s http://localhost:3000/api/status)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/api/logs?limit=1)",
+      "Bash(curl -s \"https://leonard-dark-values-surfaces.trycloudflare.com/api/logs?limit=1\")",
+      "Bash(curl -s http://localhost:3000/api/logs?limit=1)",
+      "Bash(curl -s \"http://localhost:3000/api/logs?limit=3\")",
+      "Bash(findstr node:*)",
+      "Bash(taskkill /F /IM node.exe)",
+      "Bash(cmd //c \"taskkill /F /IM node.exe\")",
+      "Bash(node -e \"console.log\\(new Date\\(1774636878279\\).toISOString\\(\\)\\)\")",
+      "Bash(findstr /i \"node trend\")",
+      "Bash(ls -la *.db *.sqlite)",
+      "Bash(dir *.db *.sqlite)"
+    ]
+  }
+}

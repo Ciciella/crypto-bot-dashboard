@@ -711,9 +711,9 @@
           <canvas id="balanceChart"></canvas>
         </div>
         <div class="chart-controls">
-          <button class="chart-btn" onclick="loadBalanceHistory(1)">24小时</button>
-          <button class="chart-btn" onclick="loadBalanceHistory(3)">3天</button>
-          <button class="chart-btn active" onclick="loadBalanceHistory(7)">7天</button>
+          <button class="chart-btn" onclick="loadBalanceHistory(1, event)">24小时</button>
+          <button class="chart-btn" onclick="loadBalanceHistory(3, event)">3天</button>
+          <button class="chart-btn active" onclick="loadBalanceHistory(7, event)">7天</button>
         </div>
       </div>
 
@@ -1131,10 +1131,10 @@
 
     // 加载余额历史
     let balanceChartData = null;
-    async function loadBalanceHistory(days = 7) {
+    async function loadBalanceHistory(days = 7, event) {
       // 更新按钮状态
       document.querySelectorAll('.chart-btn').forEach(btn => btn.classList.remove('active'));
-      event.target.classList.add('active');
+      if (event?.target) event.target.classList.add('active');
       
       try {
         const res = await fetch(API_URL.replace('/trades', '/balance-history?days=' + days));

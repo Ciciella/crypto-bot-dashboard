@@ -1,21 +1,34 @@
 {
   "name": "open-fortune-claw",
   "version": "1.0.0",
-  "description": "> 自动化加密货币交易系统，支持趋势交易、网格交易等多种策略",
-  "main": "arbitrage-bot.js",
+  "type": "module",
+  "description": "Cryptocurrency trading bot system with AdonisJS 7",
+
+  "imports": {
+    "#services/*": "./app/services/*",
+    "#controllers/*": "./app/controllers/*",
+    "#config/*": "./config/*"
+  },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "tsx bin/server.ts",
+    "start": "tsx bin/server.ts",
+    "trend:bot": "tsx commands/trend_bot_command.ts",
+    "grid:bot": "tsx commands/grid_bot_command.ts",
+    "arbitrage:bot": "tsx commands/arbitrage_bot_command.ts",
+    "reset:data": "tsx commands/reset_data_command.ts"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/Ciciella/crypto-bot-dashboard.git"
+  "dependencies": {
+    "@adonisjs/core": "^7.0.0",
+    "@adonisjs/cors": "^3.0.0",
+    "@adonisjs/validator": "^13.0.0",
+    "dotenv": "^16.6.1",
+    "gate-api": "^7.0.0"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "bugs": {
-    "url": "https://github.com/Ciciella/crypto-bot-dashboard/issues"
+  "devDependencies": {
+    "tsx": "^4.21.0",
+    "typescript": "^5.0.0"
   },
-  "homepage": "https://github.com/Ciciella/crypto-bot-dashboard#readme"
+  "engines": {
+    "node": ">=22.0.0"
+  }
 }

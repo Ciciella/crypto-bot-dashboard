@@ -1,0 +1,8 @@
+{
+  "$schema": "https://adonisjs.com/schema/manifest.json",
+  "metaFile": true,
+  "commands": [
+    "./commands/index.ts"
+  ],
+  "exceptionHandler": "./app/exceptions/handler.ts"
+}
