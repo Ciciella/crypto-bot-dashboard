@@ -26,7 +26,6 @@ interface TradingSettings {
 
 interface Config {
   symbol: string
-  maxLeverage: number
   rsiOversold: number
   rsiOverbought: number
   rsiPeriod: number
@@ -68,7 +67,6 @@ interface Config {
 
 const CONFIG: Config = {
   symbol: 'BTC_USDT',
-  maxLeverage: 10,
   rsiOversold: 35,
   rsiOverbought: 70,
   rsiPeriod: 14,
@@ -246,10 +244,6 @@ function loadTradingSettings(): TradingSettings {
   try {
     const row = getDb().prepare('SELECT leverage FROM settings WHERE id = 1').get() as { leverage: number } | undefined
     let leverage = row?.leverage || 10
-    if (leverage > CONFIG.maxLeverage) {
-      console.log(`⚠️ 杠杆 ${leverage}x 超过安全限制 ${CONFIG.maxLeverage}x，已调整为 ${CONFIG.maxLeverage}x`)
-      leverage = CONFIG.maxLeverage
-    }
     if (leverage < 1) leverage = 1
     return { leverage }
   } catch {
