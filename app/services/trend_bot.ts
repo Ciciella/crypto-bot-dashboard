@@ -390,7 +390,7 @@ async function openLong(price: number, size: number): Promise<boolean> {
       leverage: String(settings.leverage),
     }
     
-    const result = await futuresApi.createFuturesOrder(order)
+    const result = await futuresApi.createFuturesOrder('usdt', order)
     debugLog('SUCCESS', 'TRADE', `开多成功: ${size} @ ${price}`, result.body)
     return true
   } catch (e: any) {
@@ -409,7 +409,7 @@ async function closeLong(price: number, size: number): Promise<boolean> {
       size: String(Math.abs(size)),
     }
 
-    const result = await futuresApi.createFuturesOrder(order)
+    const result = await futuresApi.createFuturesOrder('usdt', order)
     debugLog('SUCCESS', 'TRADE', `平多成功: ${size} @ ${price}`, result.body)
     return true
   } catch (e: any) {
@@ -430,7 +430,7 @@ async function openShort(price: number, size: number): Promise<boolean> {
       leverage: String(settings.leverage),
     }
 
-    const result = await futuresApi.createFuturesOrder(order)
+    const result = await futuresApi.createFuturesOrder('usdt', order)
     debugLog('SUCCESS', 'TRADE', `开空成功: ${size} @ ${price}`, result.body)
     return true
   } catch (e: any) {
@@ -449,7 +449,7 @@ async function closeShort(price: number, size: number): Promise<boolean> {
       size: String(Math.abs(size)),
     }
 
-    const result = await futuresApi.createFuturesOrder(order)
+    const result = await futuresApi.createFuturesOrder('usdt', order)
     debugLog('SUCCESS', 'TRADE', `平空成功: ${size} @ ${price}`, result.body)
     return true
   } catch (e: any) {
