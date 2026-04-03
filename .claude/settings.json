@@ -38,7 +38,15 @@
       "Read(//c/Users/18742/.claude/**)",
       "Read(//c/Users/18742/.openclaw/**)",
       "Bash(npm test:*)",
-      "Bash(npm remove:*)"
+      "Bash(npm remove:*)",
+      "Bash(ls -la *.db)",
+      "Bash(ls -la *.sqlite*)",
+      "Bash(sqlite3 trading.db \"SELECT * FROM debug_logs ORDER BY id DESC LIMIT 10;\")",
+      "Bash(grep -r \"FuturesOrder\" node_modules/gate-api/build/*.d.ts)",
+      "WebSearch",
+      "WebFetch(domain:www.gate.io)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__query-docs"
     ],
     "additionalDirectories": [
       "c:\\Users\\18742\\.claude\\plugins"
