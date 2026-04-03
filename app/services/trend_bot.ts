@@ -1210,7 +1210,8 @@ async function tradeCycle() {
           log(`[TrendBot] 开多仓: ${amount.toFixed(4)} BTC @ $${currentPrice} (信号强度${signals.strength}, 仓位比例${positionPercent}%)`)
           const success = await openLong(currentPrice, amount)
           if (success) {
-            recordTrade('open', 'long', amount, currentPrice, signals.reason.join(' + '))
+            const roundedAmount = Math.round(amount * 100) / 100
+            recordTrade('open', 'long', roundedAmount, currentPrice, signals.reason.join(' + '))
             signalHistory.lastTradeTime = Date.now()
             trailingActive = false
           }
@@ -1225,7 +1226,8 @@ async function tradeCycle() {
           log(`[TrendBot] 开空仓: ${amount.toFixed(4)} BTC @ $${currentPrice} (信号强度${signals.strength}, 仓位比例${positionPercent}%)`)
           const success = await openShort(currentPrice, amount)
           if (success) {
-            recordTrade('open', 'short', -amount, currentPrice, signals.reason.join(' + '))
+            const roundedAmount = Math.round(amount * 100) / 100
+            recordTrade('open', 'short', -roundedAmount, currentPrice, signals.reason.join(' + '))
             signalHistory.lastTradeTime = Date.now()
             trailingActive = false
           }
